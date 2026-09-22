@@ -7,14 +7,16 @@ import { useTags } from "@/features/tags/use-tags";
 export function TodayScreen() {
   const { data: tags, isLoading, isError } = useTags();
 
+  const ahora = new Date();
+  const diaSemana = new Intl.DateTimeFormat("es-CO", { weekday: "long", timeZone: "America/Bogota" }).format(ahora);
   const hoy = new Intl.DateTimeFormat("es-CO", { day: "numeric", month: "short", timeZone: "America/Bogota" }).format(
-    new Date(),
+    ahora,
   );
 
   return (
     <div className="space-y-6 px-4 pt-3">
       <section>
-        <p className="mb-1 text-xs font-semibold uppercase text-muted-foreground">Hoy</p>
+        <p className="mb-1 text-xs font-semibold uppercase text-muted-foreground">{diaSemana}</p>
         <h1 className="font-display text-[34px] font-bold leading-none">
           Hoy <span className="text-muted-foreground">{hoy}</span>
         </h1>
