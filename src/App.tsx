@@ -13,6 +13,7 @@ import { CalendarScreen } from "@/features/calendar/calendar-screen";
 import { MeScreen } from "@/features/me/me-screen";
 import { FinanceScreen } from "@/features/finance/finance-screen";
 import { SettingsScreen } from "@/features/notifications/settings-screen";
+import { NotionCallback } from "@/features/integrations/notion-callback";
 
 function FullScreenLoader() {
   return (
@@ -35,6 +36,8 @@ function Gate() {
     <BrowserRouter>
       <CaptureProvider>
         <Routes>
+          {/* Aterrizaje del OAuth de Notion: sin el marco de la app. */}
+          <Route path="notion-callback" element={<NotionCallback />} />
           <Route element={<AppShell />}>
             <Route index element={<TodayScreen />} />
             <Route path="calendario" element={<CalendarScreen />} />

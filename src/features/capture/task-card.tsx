@@ -19,12 +19,16 @@ export function TaskCard({
   franja,
   onToggle,
   onTocarTag,
+  onNotion,
+  enviandoANotion,
 }: {
   item: Item;
   tag: Tag | undefined;
   franja?: Franja;
   onToggle: () => void;
   onTocarTag: () => void;
+  onNotion?: () => void;
+  enviandoANotion?: boolean;
 }) {
   const hoy = todayBogota();
   const color = tag?.color ?? "#6b7280";
@@ -93,6 +97,20 @@ export function TaskCard({
               </span>
             )}
             {tipoEtiqueta && <span className="tag tag-neutral">{tipoEtiqueta}</span>}
+
+            {item.notion_page_id ? (
+              <span className="tag tag-neutral">N · En Notion</span>
+            ) : (
+              onNotion && (
+                <button
+                  onClick={onNotion}
+                  disabled={enviandoANotion}
+                  className="tag tag-neutral cursor-pointer disabled:opacity-50"
+                >
+                  N · {enviandoANotion ? "Enviando..." : "Colocar en Notion"}
+                </button>
+              )
+            )}
           </div>
         </div>
       </div>

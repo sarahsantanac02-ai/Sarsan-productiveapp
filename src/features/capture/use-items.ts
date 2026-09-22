@@ -21,6 +21,8 @@ export type Item = {
   clasificando: boolean;
   franja: FranjaId | null;
   franja_dia: string | null;
+  gcal_event_id: string | null;
+  notion_page_id: string | null;
   created_at: string;
 };
 

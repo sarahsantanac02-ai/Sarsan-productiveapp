@@ -1,4 +1,4 @@
-import { Bell, BellOff, Moon, Share, Sun, Trash2 } from "lucide-react";
+import { Bell, BellOff, Link2, Moon, Share, Sun, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -17,6 +17,7 @@ import {
   useNotificationPrefs,
   usePushSubscriptions,
 } from "@/features/notifications/use-push";
+import { puedeConectarNotion, urlDeAutorizacionNotion } from "@/features/integrations/use-notion";
 
 export function SettingsScreen() {
   const { signOut, user } = useAuth();
@@ -141,6 +142,29 @@ export function SettingsScreen() {
                 />
               </div>
             </div>
+          )}
+        </Card>
+
+        <Card>
+          <h2 className="font-display font-semibold">Integraciones</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Google Calendar y Gmail ya quedaron conectados cuando entraste.
+          </p>
+
+          {puedeConectarNotion() ? (
+            <Button
+              variant="outline"
+              className="mt-3 w-full"
+              onClick={() => {
+                window.location.href = urlDeAutorizacionNotion();
+              }}
+            >
+              <Link2 /> Conectar Notion
+            </Button>
+          ) : (
+            <p className="mt-3 text-xs text-muted-foreground">
+              Para conectar Notion falta configurar <code>VITE_NOTION_CLIENT_ID</code> en Vercel.
+            </p>
           )}
         </Card>
 

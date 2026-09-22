@@ -12,6 +12,8 @@ import { TaskCard } from "@/features/capture/task-card";
 import { useItems, useUpdateItem, type Item } from "@/features/capture/use-items";
 import { FranjaBar } from "@/features/today/franja-bar";
 import { usePlanDay } from "@/features/today/use-plan-day";
+import { useEnviarANotion, useSincronizarNotion } from "@/features/integrations/use-notion";
+import { SapqInbox } from "@/features/integrations/sapq-inbox";
 
 export function TodayScreen() {
   const { data: profile } = useProfile();
@@ -19,6 +21,8 @@ export function TodayScreen() {
   const { data: items, isLoading, isError } = useItems();
   const updateItem = useUpdateItem();
   const planDay = usePlanDay();
+  const enviarANotion = useEnviarANotion();
+  const sincronizarNotion = useSincronizarNotion();
 
   const [filtroTag, setFiltroTag] = useState<string | null>(null);
   const [franjaElegida, setFranjaElegida] = useState<Franja | null>(null);
@@ -176,11 +180,29 @@ export function TodayScreen() {
             item={item}
             tag={tags?.find((t) => t.id === item.tag_id)}
             franja={franjas.find((f) => f.id === asignadaHoy(item))}
-            onToggle={() => updateItem.mutate({ id: item.id, patch: { done: !item.done } })}
+            onToggle={() => {
+              const hecha = !item.done;
+              updateItem.mutate({ id: item.id, patch: { done: hecha } });
+              // Si la tarea vive también en Notion, deja la casilla al día allá.
+              if (item.notion_page_id) {
+                sincronizarNotion.mutate({ notionPageId: item.notion_page_id, hecha });
+              }
+            }}
             onTocarTag={() => setEditandoTag(item)}
+            onNotion={() => enviarANotion.mutate(item.id)}
+            enviandoANotion={enviarANotion.isPending && enviarANotion.variables === item.id}
           />
         ))}
+
+        {enviarANotion.isError && (
+          <p className="text-xs text-destructive">
+            {enviarANotion.error instanceof Error ? enviarANotion.error.message : "No se pudo enviar a Notion"}
+          </p>
+        )}
       </section>
+
+      {/* Blueprint: los correos de SAPQ se ven al filtrar por esa etiqueta. */}
+      <SapqInbox activo={tags?.find((t) => t.id === filtroTag)?.nombre === "SAPQ"} />
 
       {editandoTag && <TagSheet item={editandoTag} onClose={() => setEditandoTag(null)} />}
     </div>
