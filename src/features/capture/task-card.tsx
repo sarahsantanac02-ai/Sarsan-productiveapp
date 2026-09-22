@@ -1,8 +1,9 @@
-import { Check, Clock3, Sparkles } from "lucide-react";
+import { Check, Clock3, Sparkles, Zap } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { etiquetaFecha, etiquetaHora, todayBogota } from "@/lib/date";
+import type { Franja } from "@/lib/franjas";
 import type { Item } from "@/features/capture/use-items";
 import type { Tag } from "@/features/tags/use-tags";
 
@@ -15,11 +16,13 @@ const ETIQUETA_TIPO: Partial<Record<Item["tipo"], string>> = {
 export function TaskCard({
   item,
   tag,
+  franja,
   onToggle,
   onTocarTag,
 }: {
   item: Item;
   tag: Tag | undefined;
+  franja?: Franja;
   onToggle: () => void;
   onTocarTag: () => void;
 }) {
@@ -83,6 +86,12 @@ export function TaskCard({
               </span>
             )}
             {!item.fecha && <span className="tag tag-neutral">Sin fecha</span>}
+            {franja && (
+              <span className="tag tag-neutral">
+                <Zap />
+                {franja.nombre}
+              </span>
+            )}
             {tipoEtiqueta && <span className="tag tag-neutral">{tipoEtiqueta}</span>}
           </div>
         </div>

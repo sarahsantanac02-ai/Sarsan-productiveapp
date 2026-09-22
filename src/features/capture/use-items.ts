@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/features/auth/use-auth";
 import type { Urgencia } from "@/lib/urgencia";
+import type { FranjaId } from "@/lib/franjas";
 
 export type Tipo = "tarea" | "evento" | "seguimiento" | "idea" | "gasto" | "ingreso";
 
@@ -18,6 +19,8 @@ export type Item = {
   duracion_min: number | null;
   done: boolean;
   clasificando: boolean;
+  franja: FranjaId | null;
+  franja_dia: string | null;
   created_at: string;
 };
 
