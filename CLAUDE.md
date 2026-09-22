@@ -2,7 +2,7 @@
 
 SarSan: app móvil personal de productividad y bienestar para Sarah (diseñadora UX/UI y estudiante de Diseño Industrial, Bogotá). Voz → IA clasifica → tareas, eventos, gastos, hábitos y bienestar en un solo lugar. Detalle completo en `docs/blueprint.md` — si algo aquí y el blueprint se contradicen, gana el blueprint.
 
-Estado actual: **Fase 0 (auditoría)**. Todavía no existe código de app; este archivo describe la estructura planeada y se actualiza al final de cada fase.
+Estado actual: **Fase 1 (base)** — proyecto scaffolded, Supabase con esquema + RLS + seeds, Auth con Google, onboarding, y navegación con etiquetas/medios de pago/hábitos leídos en vivo. Captura por voz, Calendario, franjas de energía y el resto de "Mí"/Finanzas llegan en las fases siguientes (ver `docs/blueprint.md`).
 
 ## Stack
 
@@ -25,31 +25,24 @@ Estado actual: **Fase 0 (auditoría)**. Todavía no existe código de app; este 
 - Antes de borrar archivos, cambiar un esquema existente o instalar una dependencia grande: preguntar a Sarah primero.
 - Antes de la siguiente fase: resumen de lo hecho, cómo probarlo en el celular, qué sigue, y esperar el OK de Sarah.
 
-## Estructura planeada
+## Estructura
 
 ```
 /src
-  /components       # UI compartida (shadcn + estética Lovable)
+  /components/ui     # primitivas shadcn-style (Button, Card, Input, Label) + app-shell (header/dock)
   /features
-    capture/         # micrófono, clasificación, bottom sheets
-    today/           # franjas de energía, pendientes, "Organizar mi día"
-    calendar/        # vistas Día/3 días/Mes, Google Calendar
-    me/               # no negociables, agua, comida, energizantes, ciclo
-    finance/         # gastos/ingresos, medios, categorías
-    tags/            # etiquetas
-    integrations/    # Google, Gmail, Notion
-  /lib               # supabase client, formatters, cálculos (franjas, urgencia, Mifflin-St Jeor)
-  /hooks
+    auth/            # AuthProvider, sign-in con Google
+    onboarding/      # perfil (hora_despertar/dormir, edad) — gate antes de la app
+    today/           # Hoy — etiquetas (Fase 1); franjas y pendientes llegan en Fase 3
+    calendar/        # Calendario — placeholder hasta la Fase 4
+    me/              # Mí — hábitos con check diario (Fase 1); agua/comida/energizantes/ciclo en Fase 5
+    finance/         # Finanzas — medios de pago (Fase 1); movimientos en Fase 6
+    tags/            # hook de etiquetas (usado por Hoy y, más adelante, por Captura)
+    integrations/    # (Fase 7) Notion, Gmail SAPQ — Google ya se conecta en auth/
+  /lib               # supabase client, theme, date, query-client, cn()
 /supabase
-  /migrations
-  /functions
-    classify-capture/
-    estimate-food/
-    plan-day/
-    google-calendar/
-    gmail-sapq/
-    notion-sync/
-    web-push/
+  /migrations        # esquema + RLS + seed trigger (ya aplicados a mano vía SQL Editor — ver abajo)
+  /functions         # (a partir de Fase 2) classify-capture, estimate-food, plan-day, google-calendar, gmail-sapq, notion-sync, web-push
 /docs
   blueprint.md        # fuente de verdad del producto
   design-system.md    # tokens extraídos de reference/lovable/
@@ -58,15 +51,20 @@ Estado actual: **Fase 0 (auditoría)**. Todavía no existe código de app; este 
   lovable/            # export/capturas de Lovable — SOLO referencia visual, no se construye sobre esto
 ```
 
+Nota sobre las migraciones: como este entorno no tiene el `service_role` ni la contraseña de la base de datos de Sarah, el esquema de la Fase 1 se aplicó pegando el SQL consolidado en el SQL Editor del Dashboard de Supabase en vez de `supabase db push`. Los archivos en `supabase/migrations` son la fuente de verdad versionada; a partir de aquí, usar `npx supabase db push` (o repetir el pegado a mano) para cada migración nueva.
+
 ## Comandos
 
-Se documentan aquí a medida que el proyecto se scaffolda (Fase 1). Previstos:
+- `npm install` — instala dependencias
+- `npm run dev` — servidor de desarrollo Vite (http://localhost:5173)
+- `npm run build` — typecheck (`tsc -b`) + build de producción (incluye el service worker vía `vite-plugin-pwa`)
+- `npm run lint` — ESLint (flat config, ignora `reference/`)
+- `npm run test` — pruebas unitarias (vitest) — aún sin specs; llegan con los cálculos de la Fase 3+
+- `npm run gen:types` — regenera `src/lib/database.types.ts` desde el esquema real de Supabase (requiere `supabase login` una vez)
+- `npx supabase migration new <nombre>` — nueva migración versionada en `supabase/migrations`
+- `npx supabase db push` — aplica migraciones pendientes al proyecto vinculado (alternativa a pegar el SQL a mano en el Dashboard)
 
-- `npm run dev` — servidor de desarrollo Vite
-- `npm run build` — build de producción
-- `npm run test` — pruebas unitarias (franjas, urgencia, Mifflin-St Jeor, rachas, recurrencias, prompts de IA)
-- `npx supabase db diff` / `npx supabase migration new <nombre>` — migraciones
-- `npx supabase functions serve <nombre>` / `npx supabase functions deploy <nombre>` — Edge Functions
+Variables de entorno: copiar `.env.example` a `.env.local` (ya gitignored) con `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` del proyecto de Supabase.
 
 ## Fases
 
