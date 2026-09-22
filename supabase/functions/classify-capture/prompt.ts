@@ -15,10 +15,10 @@ export type Contexto = {
 
 export function construirSystemPrompt(ctx: Contexto): string {
   const tags = ctx.tags
-    .map((t) => `- ${t.id} · ${t.nombre}${t.descripcion ? ` — ${t.descripcion}` : ""}`)
+    .map((t) => `- ${t.nombre}${t.descripcion ? ` — ${t.descripcion}` : ""}`)
     .join("\n");
 
-  const medios = ctx.medios.map((m) => `- ${m.id} · ${m.nombre} (${m.tipo})`).join("\n");
+  const medios = ctx.medios.map((m) => `- ${m.nombre} (${m.tipo})`).join("\n");
 
   const gastos = ctx.categorias.filter((c) => c.tipo === "gasto").map((c) => c.nombre).join(", ");
   const ingresos = ctx.categorias.filter((c) => c.tipo === "ingreso").map((c) => c.nombre).join(", ");
@@ -27,8 +27,9 @@ export function construirSystemPrompt(ctx: Contexto): string {
     ? ctx.hints
         .map((h) => {
           const tag = ctx.tags.find((t) => t.id === h.tag_id);
-          return `- "${h.texto}" → ${tag ? tag.nombre : h.tag_id}`;
+          return `- "${h.texto}" → ${tag ? tag.nombre : "?"}`;
         })
+        .filter((linea) => !linea.endsWith("?"))
         .join("\n")
     : "(todavía no hay correcciones)";
 
@@ -36,13 +37,13 @@ export function construirSystemPrompt(ctx: Contexto): string {
 
 Hoy es ${ctx.diaSemana} ${ctx.hoy}, son las ${ctx.hora}, zona horaria America/Bogota.
 
-## Sus etiquetas (usa el id exacto)
+## Sus etiquetas
 ${tags}
 
-## Sus medios de pago (usa el id exacto)
+## Sus medios de pago
 ${medios}
 
-## Sus categorías de dinero (usa el nombre exacto)
+## Sus categorías de dinero
 Gastos: ${gastos}
 Ingresos: ${ingresos}
 
@@ -58,34 +59,35 @@ ${correcciones}
 - \`idea\`: una ocurrencia sin acción concreta.
 - \`gasto\` / \`ingreso\`: plata que salió o entró. Si dice que ya pagó o ya le pagaron, es gasto/ingreso, no tarea.
 
+**etiqueta**
+- Escribe el NOMBRE EXACTO de una de sus etiquetas, tal como aparece arriba.
+- Escógela por el tema, usando el nombre y la descripción. Si menciona una persona o proyecto que es una etiqueta ("el informe de Virrey", "llamar a Lucas", "el curso del campus" → SAPQ), usa esa.
+- Solo usa General cuando de verdad ninguna encaje.
+
 **fecha y hora**
-- Resuelve fechas relativas contra la fecha de hoy: "mañana", "el viernes" (el próximo que venga), "en dos semanas", "el 30 de noviembre".
-- Si NO menciona cuándo, deja \`fecha\` en null. NO inventes una fecha. La app le preguntará.
-- \`hora\` solo si la dijo. Si la hora es ambigua entre mañana y tarde, elige lo que tenga sentido: clases, trabajo y trámites suelen ser de día.
+- Resuelve fechas relativas contra hoy: "mañana", "el viernes" (el próximo que venga), "en dos semanas", "el 30 de noviembre".
+- Si NO menciona cuándo, deja \`fecha\` en null. NO inventes una fecha: la app le pregunta.
+- \`hora\` solo si la dijo. Si es ambigua entre mañana y tarde, elige lo que tenga sentido: clases, trabajo y trámites suelen ser de día.
 - \`duracion_min\` si dio un rango ("de 7 a 9" → 120).
 
 **recurrencia**
-- Solo si se repite ("todos los lunes", "lunes y miércoles"). Días en \`dias\` (lun, mar, mie, jue, vie, sab, dom), \`inicio\` la primera fecha en que aplica, y \`hasta\` la fecha final si la dijo ("hasta el 30 de noviembre"), o null si no.
+- Solo si se repite ("todos los lunes", "lunes y miércoles"). \`dias\` con lun/mar/mie/jue/vie/sab/dom, \`inicio\` la primera fecha en que aplica, y \`hasta\` la fecha final si la dijo, o null.
 - Cuando hay recurrencia, \`fecha\` es la primera ocurrencia.
 
 **plata (pesos colombianos)**
-- "18 mil" = 18000. "800 mil" = 800000. "un millón dos" = 1200000. "3 lucas" = 3000.
-- \`medio_id\`: solo si nombró con qué pagó ("con Nequi", "con la Nu", "en efectivo"). Si no lo dijo, null — la app le pregunta.
-- \`categoria\`: el nombre exacto de una de las categorías de arriba, según el tipo (gasto o ingreso). Si habla de un cliente o proyecto que es una categoría de ingreso, úsala.
-
-**tag_id**
-- Escoge la etiqueta por el tema, usando nombre y descripción. Si el texto menciona a una persona o proyecto que es una etiqueta, úsala.
-- Si ninguna encaja, usa la etiqueta General.
+- "18 mil" = 18000. "800 mil" = 800000. "un millón dos" = 1200000. "3 lucas" = 3000. Devuelve el número ya multiplicado.
+- \`medio\`: el NOMBRE EXACTO de uno de sus medios de pago, solo si nombró con qué pagó ("con Nequi", "con la Nu", "en efectivo"). Si no lo dijo, null — la app le pregunta.
+- \`categoria\`: el NOMBRE EXACTO de una de las categorías de arriba, del tipo que corresponda (gasto o ingreso). Si nombra un cliente o proyecto que es categoría de ingreso, úsala.
 
 **urgencia**
-- Si hay fecha, la app la recalcula sola; devuelve tu mejor estimación igual.
-- Si no hay fecha: \`alta\` solo si ella dijo que es urgente o ya, si no \`media\`.
+- Si hay fecha, la app la recalcula sola; devuelve igual tu mejor estimación.
+- Si no hay fecha: \`alta\` solo si dijo que es urgente o que es ya; si no, \`media\`.
 
 **pedir_notion**
-- true solo si pidió explícitamente mandarlo a Notion ("ponlo en Notion", "mándalo a Notion").
+- true solo si lo pidió explícitamente ("ponlo en Notion", "mándalo a Notion").
 
 **texto_limpio**
-- El texto ordenado, corto y en imperativo para una tarea ("Entregar el informe de Virrey"), o descriptivo para un gasto ("Almuerzo"). Sin la fecha ni el medio de pago adentro, porque van en sus propios campos. Respeta cómo lo diría ella; no lo vuelvas formal.
+- El texto ordenado y corto: imperativo para una tarea ("Entregar el informe de Virrey"), descriptivo para un gasto ("Almuerzo"). Sin la fecha ni el medio de pago adentro, porque van en sus propios campos. No lo vuelvas formal.
 
-Devuelve siempre la herramienta \`registrar_captura\`, una sola vez.`;
+Llama siempre a la herramienta \`registrar_captura\`, una sola vez.`;
 }

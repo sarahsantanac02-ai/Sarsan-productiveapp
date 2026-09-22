@@ -2,7 +2,7 @@ import Anthropic from "npm:@anthropic-ai/sdk";
 import { createClient } from "npm:@supabase/supabase-js";
 
 import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
-import { clasificacionSchema, toolInputSchema, type Clasificacion } from "./schema.ts";
+import { clasificacionSchema, construirToolSchema, type Clasificacion } from "./schema.ts";
 import { construirSystemPrompt, type Contexto } from "./prompt.ts";
 
 const MODELO = "claude-haiku-4-5";
@@ -30,6 +30,15 @@ function partesBogota(ahora: Date) {
     timeZone: "America/Bogota",
   }).format(ahora);
   return { hoy, diaSemana, hora };
+}
+
+/** Compara nombres ignorando mayúsculas y tildes, por si el modelo escribe "virrey". */
+function normalizar(texto: string): string {
+  return texto
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .trim();
 }
 
 Deno.serve(async (req) => {
@@ -65,7 +74,7 @@ Deno.serve(async (req) => {
     ]);
 
     const errores = [tagsRes.error, mediosRes.error, categoriasRes.error, hintsRes.error].filter(Boolean);
-    if (errores.length) throw new Error(errores.map((e) => e!.message).join("; "));
+    if (errores.length) throw new Error(`Leyendo el contexto: ${errores.map((e) => e!.message).join("; ")}`);
 
     const { hoy, diaSemana, hora } = partesBogota(new Date());
     const ctx: Contexto = {
@@ -78,6 +87,10 @@ Deno.serve(async (req) => {
       hora,
     };
 
+    if (ctx.tags.length === 0) {
+      throw new Error("No se leyó ninguna etiqueta: revisa el RLS o si la cuenta tiene sus seeds.");
+    }
+
     const anthropic = new Anthropic({ apiKey: anthropicKey });
     const respuesta = await anthropic.messages.create({
       model: MODELO,
@@ -87,8 +100,11 @@ Deno.serve(async (req) => {
         {
           name: "registrar_captura",
           description: "Registra la captura ya clasificada en SarSan.",
-          input_schema: toolInputSchema,
-          strict: true,
+          input_schema: construirToolSchema({
+            etiquetas: ctx.tags.map((t) => t.nombre),
+            medios: ctx.medios.map((m) => m.nombre),
+            categorias: [...new Set(ctx.categorias.map((c) => c.nombre))],
+          }),
         },
       ] as never,
       tool_choice: { type: "tool", name: "registrar_captura" },
@@ -100,7 +116,12 @@ Deno.serve(async (req) => {
       throw new Error(`La IA no devolvió la herramienta (stop_reason: ${respuesta.stop_reason})`);
     }
 
-    const clasificacion: Clasificacion = clasificacionSchema.parse(bloque.input);
+    const parseo = clasificacionSchema.safeParse(bloque.input);
+    if (!parseo.success) {
+      console.error("La IA devolvió algo que no valida:", JSON.stringify(bloque.input));
+      throw new Error(`Respuesta inválida: ${parseo.error.issues.map((i) => i.path.join(".")).join(", ")}`);
+    }
+    const clasificacion: Clasificacion = parseo.data;
 
     // La urgencia manda la fecha, no la IA (blueprint).
     const urgencia = clasificacion.fecha
@@ -108,15 +129,26 @@ Deno.serve(async (req) => {
       : (clasificacion.urgencia ?? "media");
 
     const esMovimiento = clasificacion.tipo === "gasto" || clasificacion.tipo === "ingreso";
+
+    // Nombre → id. Si no encaja ninguno, General (y queda en los logs para saberlo).
+    const tag = clasificacion.etiqueta
+      ? ctx.tags.find((t) => normalizar(t.nombre) === normalizar(clasificacion.etiqueta!))
+      : undefined;
     const tagGeneral = ctx.tags.find((t) => t.nombre === "General");
-    const tagValido = ctx.tags.some((t) => t.id === clasificacion.tag_id);
+    if (clasificacion.etiqueta && !tag) {
+      console.warn(`Etiqueta desconocida "${clasificacion.etiqueta}" → General`);
+    }
+
+    const medio = clasificacion.medio
+      ? ctx.medios.find((m) => normalizar(m.nombre) === normalizar(clasificacion.medio!))
+      : undefined;
 
     const { error: updateError } = await supabase
       .from("items")
       .update({
         texto: clasificacion.texto_limpio,
         tipo: clasificacion.tipo,
-        tag_id: tagValido ? clasificacion.tag_id : (tagGeneral?.id ?? null),
+        tag_id: tag?.id ?? tagGeneral?.id ?? null,
         urgencia: esMovimiento ? null : urgencia,
         fecha: clasificacion.fecha,
         hora: clasificacion.hora,
@@ -126,16 +158,15 @@ Deno.serve(async (req) => {
       })
       .eq("id", itemId);
 
-    if (updateError) throw new Error(updateError.message);
+    if (updateError) throw new Error(`Actualizando el item: ${updateError.message}`);
 
     // Un gasto o ingreso además queda registrado en Finanzas. El item se guarda
     // como bitácora de la captura, pero no aparece entre los pendientes.
     let transactionId: string | null = null;
     if (esMovimiento && clasificacion.monto) {
       const categoria = ctx.categorias.find(
-        (c) => c.tipo === clasificacion.tipo && c.nombre === clasificacion.categoria,
+        (c) => c.tipo === clasificacion.tipo && normalizar(c.nombre) === normalizar(clasificacion.categoria ?? ""),
       );
-      const medioValido = ctx.medios.some((m) => m.id === clasificacion.medio_id);
 
       const { data: transaccion, error: txError } = await supabase
         .from("transactions")
@@ -144,21 +175,28 @@ Deno.serve(async (req) => {
           tipo: clasificacion.tipo,
           monto: clasificacion.monto,
           categoria_id: categoria?.id ?? null,
-          medio_id: medioValido ? clasificacion.medio_id : null,
+          medio_id: medio?.id ?? null,
           fecha: clasificacion.fecha ?? hoy,
           texto: clasificacion.texto_limpio,
         })
         .select("id")
         .single();
 
-      if (txError) throw new Error(txError.message);
+      if (txError) throw new Error(`Creando el movimiento: ${txError.message}`);
       transactionId = transaccion.id;
     }
+
+    console.log(
+      `OK "${texto}" → ${clasificacion.tipo} / ${tag?.nombre ?? "General"}${
+        clasificacion.fecha ? ` / ${clasificacion.fecha}` : ""
+      }${clasificacion.monto ? ` / $${clasificacion.monto}` : ""}`,
+    );
 
     return jsonResponse({
       ...clasificacion,
       urgencia: esMovimiento ? null : urgencia,
-      tag_id: tagValido ? clasificacion.tag_id : (tagGeneral?.id ?? null),
+      tag_id: tag?.id ?? tagGeneral?.id ?? null,
+      medio_id: medio?.id ?? null,
       transaction_id: transactionId,
     });
   } catch (error) {
