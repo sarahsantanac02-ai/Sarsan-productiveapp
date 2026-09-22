@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
 
 import { useCapture } from "@/features/capture/use-items";
+import { useCrearEnGoogle } from "@/features/calendar/use-calendar";
 import { VoiceSheet } from "@/features/capture/voice-sheet";
 import { ManualSheet } from "@/features/capture/manual-sheet";
 import { DateSheet } from "@/features/capture/date-sheet";
@@ -23,6 +24,7 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
   const [seguimiento, setSeguimiento] = useState<Seguimiento | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const capture = useCapture();
+  const crearEnGoogle = useCrearEnGoogle();
 
   const capturar = useCallback(
     (texto: string) => {
@@ -48,6 +50,19 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
           const necesitaMedio =
             clasificacion.tipo === "gasto" && !clasificacion.medio_id && !!clasificacion.transaction_id;
 
+          // Un evento con fecha se agenda solo en Google (flujo del blueprint).
+          // Si Google falla, el evento igual quedó guardado acá.
+          if (clasificacion.tipo === "evento" && clasificacion.fecha) {
+            crearEnGoogle.mutate(itemId, {
+              onError: (error) =>
+                setAviso(
+                  `Lo guardé, pero no pude agendarlo en Google: ${
+                    error instanceof Error ? error.message : "error desconocido"
+                  }`,
+                ),
+            });
+          }
+
           if (necesitaFecha) {
             setSeguimiento({ tipo: "fecha", itemId, texto: clasificacion.texto_limpio });
           } else if (necesitaMedio) {
@@ -62,7 +77,7 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
         onError: () => setAviso("No se pudo guardar la captura. Revisa tu conexión e intenta otra vez."),
       });
     },
-    [capture],
+    [capture, crearEnGoogle],
   );
 
   return (
