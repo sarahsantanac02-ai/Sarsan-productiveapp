@@ -101,7 +101,7 @@ export function franjaActual(franjas: Franja[], minutosAhora: number): Franja | 
   return null;
 }
 
-export function minutosAhoraBogota(ahora = new Date()): number {
+export function minutosAhoraBogota(ahora: Date = new Date()): number {
   const hhmm = new Intl.DateTimeFormat("es-CO", {
     hour: "2-digit",
     minute: "2-digit",

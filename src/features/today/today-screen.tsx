@@ -3,7 +3,8 @@ import { Sparkles, Wand2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { todayBogota } from "@/lib/date";
-import { construirFranjas, franjaActual, minutosAhoraBogota, type Franja } from "@/lib/franjas";
+import { construirFranjas, franjaActual, type Franja } from "@/lib/franjas";
+import { useMinutoBogota } from "@/hooks/use-minuto";
 import { useProfile } from "@/features/onboarding/use-profile";
 import { useTags } from "@/features/tags/use-tags";
 import { TagSheet } from "@/features/tags/tag-sheet";
@@ -24,19 +25,19 @@ export function TodayScreen() {
   const [editandoTag, setEditandoTag] = useState<Item | null>(null);
 
   const hoy = todayBogota();
-  const ahora = new Date();
-  const diaSemana = new Intl.DateTimeFormat("es-CO", { weekday: "long", timeZone: "America/Bogota" }).format(ahora);
+  const minutosAhora = useMinutoBogota();
+  const diaSemana = new Intl.DateTimeFormat("es-CO", { weekday: "long", timeZone: "America/Bogota" }).format(new Date());
   const fechaCorta = new Intl.DateTimeFormat("es-CO", {
     day: "numeric",
     month: "short",
     timeZone: "America/Bogota",
-  }).format(ahora);
+  }).format(new Date());
 
   const franjas = useMemo(
     () => construirFranjas(profile?.hora_despertar ?? "06:00", profile?.hora_dormir ?? "22:00"),
     [profile?.hora_despertar, profile?.hora_dormir],
   );
-  const actual = useMemo(() => franjaActual(franjas, minutosAhoraBogota(ahora)), [franjas, ahora]);
+  const actual = useMemo(() => franjaActual(franjas, minutosAhora), [franjas, minutosAhora]);
 
   const todos = items ?? [];
   const asignadaHoy = (item: Item) => (item.franja_dia === hoy ? item.franja : null);
