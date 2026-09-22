@@ -32,7 +32,13 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
           if (!clasificacion) return;
 
           if (clasificacion.fallback) {
-            setAviso("No pude ordenarlo esta vez. Lo dejé como tarea en General para que lo edites.");
+            // App personal de una sola usuaria: mostrar el error de verdad le
+            // sirve más que un mensaje bonito, y evita ir a buscar los logs.
+            setAviso(
+              `No pude ordenarlo esta vez. Lo dejé como tarea en General.\n\nRazón: ${
+                clasificacion.error ?? "desconocida"
+              }`,
+            );
             return;
           }
 
@@ -88,7 +94,7 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
         <div className="fixed inset-x-0 bottom-[96px] z-50 mx-auto w-full max-w-[390px] px-4">
           <button
             onClick={() => setAviso(null)}
-            className="w-full cursor-pointer rounded-2xl border border-border bg-card p-3.5 text-left text-xs leading-relaxed shadow-lg"
+            className="w-full cursor-pointer whitespace-pre-line rounded-2xl border border-border bg-card p-3.5 text-left text-xs leading-relaxed shadow-lg"
           >
             {aviso}
           </button>
