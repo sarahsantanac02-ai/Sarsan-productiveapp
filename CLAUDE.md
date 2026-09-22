@@ -2,7 +2,17 @@
 
 SarSan: app móvil personal de productividad y bienestar para Sarah (diseñadora UX/UI y estudiante de Diseño Industrial, Bogotá). Voz → IA clasifica → tareas, eventos, gastos, hábitos y bienestar en un solo lugar. Detalle completo en `docs/blueprint.md` — si algo aquí y el blueprint se contradicen, gana el blueprint.
 
-Estado actual: **Fase 2 (captura + IA)** — sobre la base de la Fase 1 (Supabase con esquema + RLS + seeds, Auth con Google, onboarding, navegación), ya funciona la captura por voz y escrita: la Edge Function `classify-capture` clasifica con `claude-haiku-4-5`, la card aparece al instante en estado "ordenando", y la app pregunta la fecha o el medio de pago cuando faltan. Las correcciones de etiqueta se guardan en `tag_hints`. Franjas de energía y "Organizar mi día" (Fase 3), Calendario (Fase 4) y el resto de "Mí"/Finanzas llegan después (ver `docs/blueprint.md`).
+Estado actual: **Fases 0–9 construidas.** Falta solo la Fase 10 (widgets nativos), que necesita Xcode y cuenta de Apple Developer.
+
+- **1 Base** — Supabase con esquema, RLS y seeds; Auth con Google; onboarding; navegación.
+- **2 Captura** — voz (Web Speech es-CO) y texto → `classify-capture` (haiku) → card al instante en "ordenando"; pregunta fecha o medio cuando faltan; las correcciones de etiqueta alimentan `tag_hints`.
+- **3 Hoy** — franjas de energía desde la hora de despertar, y `plan-day` (sonnet) reparte pendientes y escribe el resumen.
+- **4 Calendario** — `google-calendar` lee y crea (con RRULE); vistas Día/3 días/Mes con solapes, línea de hora actual y resumen de ocupación.
+- **5 Mí** — no negociables con racha, agua, lecturas, `estimate-food` (sonnet con visión), energizantes con hora de corte, ciclo.
+- **6 Finanzas** — gastos/ingresos por mes, categorías, medios, aviso de crédito, campo rápido que reusa la captura.
+- **7 Integraciones** — `gmail-sapq` y `notion-sync` (OAuth, base "SarSan — Tareas", "Colocar en Notion", sync de Hecha).
+- **8 Notificaciones** — service worker propio, `check-notifications` por `pg_cron`, pantalla de Ajustes.
+- **9 Pulido** — modo oscuro verificado (el `h1` computa el blanco correcto, que era el bug del prototipo), estados vacíos y de error en cada pantalla.
 
 ## Stack
 
@@ -69,7 +79,10 @@ Nota sobre las migraciones: como este entorno no tiene el `service_role` ni la c
 
 Variables de entorno: copiar `.env.example` a `.env.local` (ya gitignored) con `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` del proyecto de Supabase.
 
-Secrets de Edge Functions (en el Dashboard → Edge Functions → Secrets, nunca en el repo): `ANTHROPIC_API_KEY`. `SUPABASE_URL` y `SUPABASE_ANON_KEY` los inyecta Supabase solo.
+Secrets de Edge Functions (Dashboard → Edge Functions → Secrets, nunca en el repo): `ANTHROPIC_API_KEY`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `NOTION_CLIENT_ID`, `NOTION_CLIENT_SECRET`. `SUPABASE_URL`, `SUPABASE_ANON_KEY` y `SUPABASE_SERVICE_ROLE_KEY` los inyecta Supabase solo.
+
+Además, para el cron de notificaciones hay que meter la service_role al Vault una vez:
+`select vault.create_secret('<service_role_key>', 'service_role_key');`
 
 Las Edge Functions corren con el JWT de Sarah (no con la service_role), así que el RLS también aplica adentro: `classify-capture` solo puede leer y escribir sus propias filas.
 
