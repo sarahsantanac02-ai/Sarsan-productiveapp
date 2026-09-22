@@ -12,6 +12,7 @@ import { TodayScreen } from "@/features/today/today-screen";
 import { CalendarScreen } from "@/features/calendar/calendar-screen";
 import { MeScreen } from "@/features/me/me-screen";
 import { FinanceScreen } from "@/features/finance/finance-screen";
+import { SettingsScreen } from "@/features/notifications/settings-screen";
 
 function FullScreenLoader() {
   return (
@@ -39,6 +40,7 @@ function Gate() {
             <Route path="calendario" element={<CalendarScreen />} />
             <Route path="mi" element={<MeScreen />} />
             <Route path="finanzas" element={<FinanceScreen />} />
+            <Route path="ajustes" element={<SettingsScreen />} />
           </Route>
         </Routes>
       </CaptureProvider>

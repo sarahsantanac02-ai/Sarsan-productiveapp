@@ -11,6 +11,11 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
+      // injectManifest en vez de generateSW: necesitamos nuestro propio
+      // service worker para manejar los push y el clic en la notificación.
+      strategies: "injectManifest",
+      srcDir: "src",
+      filename: "sw.ts",
       registerType: "autoUpdate",
       includeAssets: ["favicon.svg"],
       manifest: {
@@ -28,7 +33,7 @@ export default defineConfig({
           { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
         ],
       },
-      workbox: {
+      injectManifest: {
         globPatterns: ["**/*.{js,css,html,svg,png,ico}"],
       },
     }),

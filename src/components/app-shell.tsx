@@ -1,9 +1,7 @@
-import { useState } from "react";
-import { NavLink, Outlet } from "react-router-dom";
-import { CalendarDays, Home, Mic, Pencil, Settings2, Sun, UserRound } from "lucide-react";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { CalendarDays, Home, Mic, Pencil, Settings2, UserRound } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { applyTheme, getStoredTheme, type Theme } from "@/lib/theme";
 import { useCaptureSheets } from "@/features/capture/capture-provider";
 
 const headerLinks = [
@@ -13,14 +11,8 @@ const headerLinks = [
 ];
 
 export function AppShell() {
-  const [theme, setTheme] = useState<Theme>(getStoredTheme());
   const { abrirVoz, abrirManual } = useCaptureSheets();
-
-  function toggleTheme() {
-    const next: Theme = theme === "dark" ? "light" : "dark";
-    setTheme(next);
-    applyTheme(next);
-  }
+  const navigate = useNavigate();
 
   return (
     <main className="min-h-dvh bg-app-shell sm:px-6 sm:py-7">
@@ -38,13 +30,8 @@ export function AppShell() {
                 </NavLink>
               ))}
             </div>
-            <Button
-              variant="ghost"
-              size="iconSm"
-              aria-label={theme === "dark" ? "Activar modo claro" : "Activar modo oscuro"}
-              onClick={toggleTheme}
-            >
-              {theme === "dark" ? <Sun /> : <Settings2 />}
+            <Button variant="ghost" size="iconSm" aria-label="Ajustes" onClick={() => navigate("/ajustes")}>
+              <Settings2 />
             </Button>
           </div>
         </header>

@@ -22,6 +22,7 @@
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.9.4",
     "tailwind-merge": "^3.5.0",
+    "workbox-precaching": "^7.4.1",
     "zod": "^3.25.76"
   },
   "devDependencies": {
