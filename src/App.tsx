@@ -7,6 +7,7 @@ import { SignInScreen } from "@/features/auth/sign-in-screen";
 import { OnboardingScreen } from "@/features/onboarding/onboarding-screen";
 import { useProfile } from "@/features/onboarding/use-profile";
 import { AppShell } from "@/components/app-shell";
+import { CaptureProvider } from "@/features/capture/capture-provider";
 import { TodayScreen } from "@/features/today/today-screen";
 import { CalendarScreen } from "@/features/calendar/calendar-screen";
 import { MeScreen } from "@/features/me/me-screen";
@@ -31,14 +32,16 @@ function Gate() {
 
   return (
     <BrowserRouter>
-      <Routes>
-        <Route element={<AppShell />}>
-          <Route index element={<TodayScreen />} />
-          <Route path="calendario" element={<CalendarScreen />} />
-          <Route path="mi" element={<MeScreen />} />
-          <Route path="finanzas" element={<FinanceScreen />} />
-        </Route>
-      </Routes>
+      <CaptureProvider>
+        <Routes>
+          <Route element={<AppShell />}>
+            <Route index element={<TodayScreen />} />
+            <Route path="calendario" element={<CalendarScreen />} />
+            <Route path="mi" element={<MeScreen />} />
+            <Route path="finanzas" element={<FinanceScreen />} />
+          </Route>
+        </Routes>
+      </CaptureProvider>
     </BrowserRouter>
   );
 }

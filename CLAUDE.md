@@ -2,7 +2,7 @@
 
 SarSan: app móvil personal de productividad y bienestar para Sarah (diseñadora UX/UI y estudiante de Diseño Industrial, Bogotá). Voz → IA clasifica → tareas, eventos, gastos, hábitos y bienestar en un solo lugar. Detalle completo en `docs/blueprint.md` — si algo aquí y el blueprint se contradicen, gana el blueprint.
 
-Estado actual: **Fase 1 (base)** — proyecto scaffolded, Supabase con esquema + RLS + seeds, Auth con Google, onboarding, y navegación con etiquetas/medios de pago/hábitos leídos en vivo. Captura por voz, Calendario, franjas de energía y el resto de "Mí"/Finanzas llegan en las fases siguientes (ver `docs/blueprint.md`).
+Estado actual: **Fase 2 (captura + IA)** — sobre la base de la Fase 1 (Supabase con esquema + RLS + seeds, Auth con Google, onboarding, navegación), ya funciona la captura por voz y escrita: la Edge Function `classify-capture` clasifica con `claude-haiku-4-5`, la card aparece al instante en estado "ordenando", y la app pregunta la fecha o el medio de pago cuando faltan. Las correcciones de etiqueta se guardan en `tag_hints`. Franjas de energía y "Organizar mi día" (Fase 3), Calendario (Fase 4) y el resto de "Mí"/Finanzas llegan después (ver `docs/blueprint.md`).
 
 ## Stack
 
@@ -42,7 +42,10 @@ Estado actual: **Fase 1 (base)** — proyecto scaffolded, Supabase con esquema +
   /lib               # supabase client, theme, date, query-client, cn()
 /supabase
   /migrations        # esquema + RLS + seed trigger (ya aplicados a mano vía SQL Editor — ver abajo)
-  /functions         # (a partir de Fase 2) classify-capture, estimate-food, plan-day, google-calendar, gmail-sapq, notion-sync, web-push
+  /functions
+    _shared/         # CORS
+    classify-capture/  # index.ts + prompt.ts + schema.ts (Zod + JSON Schema con strict)
+    # pendientes: estimate-food, plan-day, google-calendar, gmail-sapq, notion-sync, web-push
 /docs
   blueprint.md        # fuente de verdad del producto
   design-system.md    # tokens extraídos de reference/lovable/
@@ -65,6 +68,10 @@ Nota sobre las migraciones: como este entorno no tiene el `service_role` ni la c
 - `npx supabase db push` — aplica migraciones pendientes al proyecto vinculado (alternativa a pegar el SQL a mano en el Dashboard)
 
 Variables de entorno: copiar `.env.example` a `.env.local` (ya gitignored) con `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` del proyecto de Supabase.
+
+Secrets de Edge Functions (en el Dashboard → Edge Functions → Secrets, nunca en el repo): `ANTHROPIC_API_KEY`. `SUPABASE_URL` y `SUPABASE_ANON_KEY` los inyecta Supabase solo.
+
+Las Edge Functions corren con el JWT de Sarah (no con la service_role), así que el RLS también aplica adentro: `classify-capture` solo puede leer y escribir sus propias filas.
 
 ## Fases
 

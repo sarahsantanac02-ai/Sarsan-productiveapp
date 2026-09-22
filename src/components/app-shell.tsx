@@ -4,6 +4,7 @@ import { CalendarDays, Home, Mic, Pencil, Settings2, Sun, UserRound } from "luci
 
 import { Button } from "@/components/ui/button";
 import { applyTheme, getStoredTheme, type Theme } from "@/lib/theme";
+import { useCaptureSheets } from "@/features/capture/capture-provider";
 
 const headerLinks = [
   { to: "/calendario", label: "Calendario" },
@@ -13,15 +14,12 @@ const headerLinks = [
 
 export function AppShell() {
   const [theme, setTheme] = useState<Theme>(getStoredTheme());
+  const { abrirVoz, abrirManual } = useCaptureSheets();
 
   function toggleTheme() {
     const next: Theme = theme === "dark" ? "light" : "dark";
     setTheme(next);
     applyTheme(next);
-  }
-
-  function captureProximamente() {
-    window.alert("La captura por voz llega en la Fase 2. Por ahora, explora tus etiquetas, medios y hábitos.");
   }
 
   return (
@@ -72,10 +70,10 @@ export function AppShell() {
               </Button>
             )}
           </NavLink>
-          <Button variant="mic" size="mic" onClick={captureProximamente} aria-label="Soltar por voz">
+          <Button variant="mic" size="mic" onClick={abrirVoz} aria-label="Soltar por voz">
             <Mic />
           </Button>
-          <Button variant="pencil" size="dock" onClick={captureProximamente}>
+          <Button variant="pencil" size="dock" onClick={abrirManual}>
             <Pencil />
             <span>Escribir</span>
           </Button>
