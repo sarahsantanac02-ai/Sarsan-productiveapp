@@ -11,6 +11,8 @@ export type Item = {
   id: string;
   texto: string;
   texto_original: string | null;
+  /** Null hasta aplicar la migración items_descripcion; el select("*") la trae sola. */
+  descripcion?: string | null;
   tipo: Tipo;
   tag_id: string | null;
   urgencia: Urgencia | null;
@@ -152,6 +154,21 @@ export function useCorregirTag() {
         tag_id: tagId,
       });
       if (hintError) console.error("No se pudo guardar la corrección:", hintError.message);
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["items", user?.id] });
+    },
+  });
+}
+
+export function useBorrarItem() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("items").delete().eq("id", id);
+      if (error) throw error;
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["items", user?.id] });

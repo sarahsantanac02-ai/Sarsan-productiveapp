@@ -1,13 +1,17 @@
 import { useMemo, useState } from "react";
-import { Sparkles, Wand2, X } from "lucide-react";
+import { Plus, Sparkles, Wand2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { todayBogota } from "@/lib/date";
 import { construirFranjas, franjaActual, type Franja } from "@/lib/franjas";
 import { useMinutoBogota } from "@/hooks/use-minuto";
+import { useLongPress } from "@/hooks/use-long-press";
 import { useProfile } from "@/features/onboarding/use-profile";
-import { useTags } from "@/features/tags/use-tags";
+import { useTags, type Tag } from "@/features/tags/use-tags";
 import { TagSheet } from "@/features/tags/tag-sheet";
+import { TagLogo } from "@/features/tags/tag-logo";
+import { TagEditorSheet } from "@/features/tags/tag-editor-sheet";
+import { ItemSheet } from "@/features/capture/item-sheet";
 import { TaskCard } from "@/features/capture/task-card";
 import { useItems, useUpdateItem, type Item } from "@/features/capture/use-items";
 import { FranjaBar } from "@/features/today/franja-bar";
@@ -28,6 +32,9 @@ export function TodayScreen() {
   const [filtroTag, setFiltroTag] = useState<string | null>(null);
   const [franjaElegida, setFranjaElegida] = useState<Franja | null>(null);
   const [editandoTag, setEditandoTag] = useState<Item | null>(null);
+  const [editandoItem, setEditandoItem] = useState<Item | null>(null);
+  // null = cerrado, "nueva" = crear, Tag = editar esa.
+  const [editorTag, setEditorTag] = useState<Tag | "nueva" | null>(null);
 
   const hoy = todayBogota();
   const minutosAhora = useMinutoBogota();
@@ -84,27 +91,20 @@ export function TodayScreen() {
 
       <section>
         <div className="scrollbar-none -mx-4 flex gap-2 overflow-x-auto px-4">
-          {tags?.map((tag) => {
-            const activa = filtroTag === tag.id;
-            return (
-              <button
-                key={tag.id}
-                onClick={() => setFiltroTag(activa ? null : tag.id)}
-                className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-all"
-                style={{
-                  backgroundColor: activa ? tag.color : `color-mix(in oklch, ${tag.color} 14%, var(--card))`,
-                  color: activa ? "var(--primary-foreground)" : tag.color,
-                  borderColor: activa ? tag.color : `color-mix(in oklch, ${tag.color} 35%, var(--border))`,
-                }}
-              >
-                <span
-                  className="size-2 rounded-full"
-                  style={{ backgroundColor: activa ? "var(--primary-foreground)" : tag.color }}
-                />
-                {tag.emoji} {tag.nombre}
-              </button>
-            );
-          })}
+          {tags?.map((tag) => (
+            <TagChip
+              key={tag.id}
+              tag={tag}
+              activa={filtroTag === tag.id}
+              onTocar={() => setFiltroTag(filtroTag === tag.id ? null : tag.id)}
+              onEditar={() => setEditorTag(tag)}
+            />
+          ))}
+          {tags && (
+            <Button variant="chip" size="sm" className="shrink-0" onClick={() => setEditorTag("nueva")}>
+              <Plus /> Nueva etiqueta
+            </Button>
+          )}
         </div>
       </section>
 
@@ -194,6 +194,7 @@ export function TodayScreen() {
               }
             }}
             onTocarTag={() => setEditandoTag(item)}
+            onEditar={() => setEditandoItem(item)}
             onNotion={() => enviarANotion.mutate(item.id)}
             enviandoANotion={enviarANotion.isPending && enviarANotion.variables === item.id}
           />
@@ -210,6 +211,45 @@ export function TodayScreen() {
       <SapqInbox activo={tags?.find((t) => t.id === filtroTag)?.nombre === "SAPQ"} />
 
       {editandoTag && <TagSheet item={editandoTag} onClose={() => setEditandoTag(null)} />}
+      {editandoItem && <ItemSheet item={editandoItem} onClose={() => setEditandoItem(null)} />}
+      {editorTag && (
+        <TagEditorSheet tag={editorTag === "nueva" ? null : editorTag} onClose={() => setEditorTag(null)} />
+      )}
     </div>
+  );
+}
+
+/** Tocar filtra; mantener presionado abre la edición de la etiqueta. */
+function TagChip({
+  tag,
+  activa,
+  onTocar,
+  onEditar,
+}: {
+  tag: Tag;
+  activa: boolean;
+  onTocar: () => void;
+  onEditar: () => void;
+}) {
+  const longPress = useLongPress(onEditar);
+
+  return (
+    <button
+      {...longPress}
+      onClick={onTocar}
+      className="no-callout inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-all"
+      style={{
+        backgroundColor: activa ? tag.color : `color-mix(in oklch, ${tag.color} 14%, var(--card))`,
+        color: activa ? "var(--primary-foreground)" : tag.color,
+        borderColor: activa ? tag.color : `color-mix(in oklch, ${tag.color} 35%, var(--border))`,
+      }}
+    >
+      <span
+        className="size-2 rounded-full"
+        style={{ backgroundColor: activa ? "var(--primary-foreground)" : tag.color }}
+      />
+      <TagLogo tag={tag} />
+      {tag.nombre}
+    </button>
   );
 }
