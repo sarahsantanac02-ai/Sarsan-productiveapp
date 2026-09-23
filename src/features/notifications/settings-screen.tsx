@@ -20,7 +20,7 @@ import {
 import { puedeConectarNotion, urlDeAutorizacionNotion } from "@/features/integrations/use-notion";
 
 export function SettingsScreen() {
-  const { signOut, user } = useAuth();
+  const { signOut, user, errorGoogle, signInWithGoogle } = useAuth();
   const { data: suscripciones } = usePushSubscriptions();
   const { data: prefs, update } = useNotificationPrefs();
   const activar = useActivarPush();
@@ -150,6 +150,18 @@ export function SettingsScreen() {
           <p className="mt-1 text-xs text-muted-foreground">
             Google Calendar y Gmail ya quedaron conectados cuando entraste.
           </p>
+
+          {errorGoogle && (
+            <div className="mt-3 rounded-xl bg-amber-soft p-3">
+              <p className="text-[11px] font-semibold text-amber-strong">
+                No pude guardar tu conexión con Google
+              </p>
+              <p className="mt-1 text-[11px] leading-relaxed text-amber-strong">{errorGoogle}</p>
+              <Button variant="outline" size="sm" className="mt-2 w-full" onClick={() => void signInWithGoogle()}>
+                <Link2 /> Volver a entrar con Google
+              </Button>
+            </div>
+          )}
 
           {puedeConectarNotion() ? (
             <Button

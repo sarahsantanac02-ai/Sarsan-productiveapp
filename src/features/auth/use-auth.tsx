@@ -12,39 +12,64 @@ type AuthContextValue = {
   session: Session | null;
   user: User | null;
   loading: boolean;
+  /** Por qué no se pudo guardar la conexión con Google, si falló. Se ve en Ajustes. */
+  errorGoogle: string | null;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-// Guarda los tokens de Google que Supabase solo entrega en el evento de login
-// (provider_refresh_token únicamente la primera vez que Sarah da consentimiento).
-// TODO(fase 7): cifrar con pgsodium desde una Edge Function en vez de guardar
-// el texto plano aquí — por ahora la fila solo la puede leer su dueña (RLS).
-async function persistGoogleTokens(session: Session) {
-  if (!session.provider_token && !session.provider_refresh_token) return;
+// Los access_token de Google duran una hora; el refresh_token es el que
+// importa, y Google solo lo entrega cuando Sarah da consentimiento.
+const GOOGLE_TOKEN_MIN = 50;
 
-  const expiraAt = session.expires_at ? new Date(session.expires_at * 1000).toISOString() : null;
+/**
+ * Guarda los tokens de Google que vienen en la sesión.
+ *
+ * `reciente` distingue el login de verdad de una sesión recuperada de
+ * localStorage. Solo en el primer caso guardamos el access_token: en una
+ * sesión vieja ese token ya puede estar muerto, y marcarlo como vigente
+ * dejaría a las Edge Functions llamando a Google con un token vencido en vez
+ * de refrescarlo.
+ *
+ * TODO: cifrar con pgsodium desde una Edge Function en vez de guardar el
+ * texto plano aquí — por ahora la fila solo la puede escribir su dueña (RLS)
+ * y nadie la puede leer desde el navegador.
+ */
+async function persistGoogleTokens(session: Session, reciente: boolean): Promise<string | null> {
+  if (!session.provider_token && !session.provider_refresh_token) return null;
 
-  const { error } = await supabase.from("integrations").upsert(
-    {
-      user_id: session.user.id,
-      proveedor: "google",
-      access_token: session.provider_token ?? null,
-      refresh_token: session.provider_refresh_token ?? undefined,
-      scopes: GOOGLE_SCOPES,
-      expira_at: expiraAt,
-    },
-    { onConflict: "user_id,proveedor", ignoreDuplicates: false },
-  );
+  const fila: Record<string, unknown> = {
+    user_id: session.user.id,
+    proveedor: "google",
+    scopes: GOOGLE_SCOPES,
+  };
 
-  if (error) console.error("No se pudo guardar la integración de Google:", error.message);
+  // Sin `??  undefined`: si esta vez no vino refresh_token, no queremos borrar
+  // el que ya estaba guardado.
+  if (session.provider_refresh_token) fila.refresh_token = session.provider_refresh_token;
+
+  if (reciente && session.provider_token) {
+    fila.access_token = session.provider_token;
+    fila.expira_at = new Date(Date.now() + GOOGLE_TOKEN_MIN * 60_000).toISOString();
+  }
+
+  const { error } = await supabase
+    .from("integrations")
+    .upsert(fila, { onConflict: "user_id,proveedor", ignoreDuplicates: false });
+
+  if (error) {
+    console.error("No se pudo guardar la integración de Google:", error.message);
+    return error.message;
+  }
+  return null;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [errorGoogle, setErrorGoogle] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -52,10 +77,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     });
 
+    // Ojo con `SIGNED_IN` a secas: el cliente de Supabase se crea al importar
+    // el módulo y procesa la URL del regreso de Google antes de que React
+    // monte esto. Para cuando existe la suscripción, ese evento ya pasó y a un
+    // suscriptor tardío le llega `INITIAL_SESSION`. Escuchando solo `SIGNED_IN`
+    // el refresh_token se perdía y Google quedaba "sin conectar" para siempre.
     const { data: listener } = supabase.auth.onAuthStateChange((event, newSession) => {
       setSession(newSession);
-      if (event === "SIGNED_IN" && newSession) {
-        void persistGoogleTokens(newSession);
+      if (!newSession) return;
+      if (event === "SIGNED_IN" || event === "INITIAL_SESSION") {
+        void persistGoogleTokens(newSession, event === "SIGNED_IN").then(setErrorGoogle);
       }
     });
 
@@ -79,7 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ session, user: session?.user ?? null, loading, signInWithGoogle, signOut }}
+      value={{ session, user: session?.user ?? null, loading, errorGoogle, signInWithGoogle, signOut }}
     >
       {children}
     </AuthContext.Provider>
