@@ -2,9 +2,11 @@ import { Check, Clock3, Sparkles, Zap } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useLongPress } from "@/hooks/use-long-press";
 import { etiquetaFecha, etiquetaHora, todayBogota } from "@/lib/date";
 import type { Franja } from "@/lib/franjas";
 import type { Item } from "@/features/capture/use-items";
+import { TagLogo } from "@/features/tags/tag-logo";
 import type { Tag } from "@/features/tags/use-tags";
 
 const ETIQUETA_TIPO: Partial<Record<Item["tipo"], string>> = {
@@ -19,6 +21,7 @@ export function TaskCard({
   franja,
   onToggle,
   onTocarTag,
+  onEditar,
   onNotion,
   enviandoANotion,
 }: {
@@ -27,11 +30,14 @@ export function TaskCard({
   franja?: Franja;
   onToggle: () => void;
   onTocarTag: () => void;
+  /** Mantener presionada la card (o tocar "Sin fecha") abre la edición completa. */
+  onEditar: () => void;
   onNotion?: () => void;
   enviandoANotion?: boolean;
 }) {
   const hoy = todayBogota();
   const color = tag?.color ?? "#6b7280";
+  const longPress = useLongPress(onEditar);
 
   if (item.clasificando) {
     return (
@@ -53,7 +59,8 @@ export function TaskCard({
 
   return (
     <article
-      className={cn("rounded-2xl border border-border border-l-[5px] bg-card p-3.5", item.done && "opacity-55")}
+      {...longPress}
+      className={cn("no-callout rounded-2xl border border-border border-l-[5px] bg-card p-3.5", item.done && "opacity-55")}
       style={{ borderLeftColor: color }}
     >
       <div className="flex gap-3">
@@ -77,9 +84,13 @@ export function TaskCard({
               className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-xl text-[13px]"
               style={{ backgroundColor: `color-mix(in oklch, ${color} 16%, var(--card))` }}
             >
-              {tag?.emoji ?? "✦"}
+              <TagLogo tag={tag} />
             </button>
           </div>
+
+          {item.descripcion && (
+            <p className="mt-1 line-clamp-2 whitespace-pre-line text-xs text-muted-foreground">{item.descripcion}</p>
+          )}
 
           <div className="mt-2.5 flex flex-wrap gap-1.5">
             {item.fecha && (
@@ -89,7 +100,11 @@ export function TaskCard({
                 {item.hora ? ` · ${etiquetaHora(item.hora)}` : ""}
               </span>
             )}
-            {!item.fecha && <span className="tag tag-neutral">Sin fecha</span>}
+            {!item.fecha && (
+              <button onClick={onEditar} className="tag tag-neutral cursor-pointer">
+                Sin fecha · ponerla
+              </button>
+            )}
             {franja && (
               <span className="tag tag-neutral">
                 <Zap />

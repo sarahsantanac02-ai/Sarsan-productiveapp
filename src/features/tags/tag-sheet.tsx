@@ -1,6 +1,7 @@
 import { Sheet } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { useCorregirTag, type Item } from "@/features/capture/use-items";
+import { TagLogo } from "@/features/tags/tag-logo";
 import { useTags } from "@/features/tags/use-tags";
 
 export function TagSheet({ item, onClose }: { item: Item; onClose: () => void }) {
@@ -33,9 +34,8 @@ export function TagSheet({ item, onClose }: { item: Item; onClose: () => void })
               }}
             >
               <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: tag.color }} />
-              <span className="truncate">
-                {tag.emoji} {tag.nombre}
-              </span>
+              <TagLogo tag={tag} />
+              <span className="truncate">{tag.nombre}</span>
             </button>
           );
         })}
