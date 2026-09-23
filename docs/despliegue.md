@@ -44,7 +44,7 @@ Dashboard → Edge Functions → Secrets:
 
 ```bash
 npx supabase login
-for f in classify-capture plan-day estimate-food google-calendar gmail-sapq notion-sync check-notifications; do
+for f in classify-capture plan-day estimate-food google-calendar gmail-sapq gmail-triage notion-sync check-notifications; do
   npx supabase functions deploy "$f" --project-ref <project-ref>
 done
 ```

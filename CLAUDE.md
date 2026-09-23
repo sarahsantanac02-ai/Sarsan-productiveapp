@@ -11,6 +11,7 @@ Estado actual: **Fases 0–9 construidas.** Falta solo la Fase 10 (widgets nativ
 - **5 Mí** — no negociables con racha, agua, lecturas, `estimate-food` (sonnet con visión), energizantes con hora de corte, ciclo.
 - **6 Finanzas** — gastos/ingresos por mes, categorías, medios, aviso de crédito, campo rápido que reusa la captura.
 - **7 Integraciones** — `gmail-sapq` y `notion-sync` (OAuth, base "SarSan — Tareas", "Colocar en Notion", sync de Hecha).
+- **Del correo** (fuera del blueprint, pedido por Sarah) — `gmail-triage` lee la bandeja principal de los últimos 7 días y propone eventos y tareas; ella aprueba en Hoy y ahí sí se crea el item (y el evento en Google).
 - **8 Notificaciones** — service worker propio, `check-notifications` por `pg_cron`, pantalla de Ajustes.
 - **9 Pulido** — modo oscuro verificado (el `h1` computa el blanco correcto, que era el bug del prototipo), estados vacíos y de error en cada pantalla.
 
@@ -19,7 +20,7 @@ Estado actual: **Fases 0–9 construidas.** Falta solo la Fase 10 (widgets nativ
 - Frontend: React + Vite + TypeScript + Tailwind + shadcn/ui, PWA instalable (manifest + service worker).
 - Datos: TanStack Query + `supabase-js`.
 - Backend: Supabase (Postgres + RLS en toda tabla, Auth con Google, Storage, Edge Functions en Deno, `pg_cron`).
-- IA: API de Anthropic solo desde Edge Functions — `claude-haiku-4-5` para clasificar capturas, `claude-sonnet-5` para fotos de comida y para "Organizar mi día". Respuestas en JSON validadas con Zod.
+- IA: API de Anthropic solo desde Edge Functions — `claude-haiku-4-5` para clasificar capturas, `claude-sonnet-5` para fotos de comida, "Organizar mi día" y la revisión del correo. Respuestas en JSON validadas con Zod.
 - Voz: Web Speech API, `lang="es-CO"`.
 - Notificaciones: Web Push + VAPID.
 
@@ -64,6 +65,7 @@ Estado actual: **Fases 0–9 construidas.** Falta solo la Fase 10 (widgets nativ
     estimate-food/     # sonnet con visión — calorías aproximadas desde una foto
     google-calendar/   # lee y crea eventos (con RRULE) en Google Calendar
     gmail-sapq/        # lee el buzón SAPQ
+    gmail-triage/      # sonnet — lee la bandeja principal y propone eventos y tareas
     notion-sync/       # OAuth, crea "SarSan — Tareas", sincroniza Hecha
     check-notifications/ # lo llama pg_cron cada 15 min; decide y manda los avisos
 /docs

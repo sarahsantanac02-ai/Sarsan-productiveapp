@@ -14,6 +14,7 @@ import { FranjaBar } from "@/features/today/franja-bar";
 import { usePlanDay } from "@/features/today/use-plan-day";
 import { useEnviarANotion, useSincronizarNotion } from "@/features/integrations/use-notion";
 import { SapqInbox } from "@/features/integrations/sapq-inbox";
+import { MailInbox } from "@/features/integrations/mail-inbox";
 
 export function TodayScreen() {
   const { data: profile } = useProfile();
@@ -130,6 +131,10 @@ export function TodayScreen() {
           </p>
         )}
       </section>
+
+      {/* Lo que Claude encontró en el correo, antes de los pendientes: ella
+          aprueba y de ahí bajan a la lista de abajo. */}
+      <MailInbox />
 
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-2">
