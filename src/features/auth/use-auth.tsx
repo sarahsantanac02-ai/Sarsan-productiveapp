@@ -40,24 +40,19 @@ const GOOGLE_TOKEN_MIN = 50;
 async function persistGoogleTokens(session: Session, reciente: boolean): Promise<string | null> {
   if (!session.provider_token && !session.provider_refresh_token) return null;
 
-  const fila: Record<string, unknown> = {
-    user_id: session.user.id,
-    proveedor: "google",
-    scopes: GOOGLE_SCOPES,
-  };
+  // Los null no pisan lo que ya estaba guardado (lo resuelve `guardar_google`):
+  // si esta vez no vino refresh_token, el viejo se queda.
+  const conAccess = reciente && !!session.provider_token;
 
-  // Sin `??  undefined`: si esta vez no vino refresh_token, no queremos borrar
-  // el que ya estaba guardado.
-  if (session.provider_refresh_token) fila.refresh_token = session.provider_refresh_token;
-
-  if (reciente && session.provider_token) {
-    fila.access_token = session.provider_token;
-    fila.expira_at = new Date(Date.now() + GOOGLE_TOKEN_MIN * 60_000).toISOString();
-  }
-
-  const { error } = await supabase
-    .from("integrations")
-    .upsert(fila, { onConflict: "user_id,proveedor", ignoreDuplicates: false });
+  // RPC y no upsert: `integrations` no tiene política de SELECT para que el
+  // navegador no pueda leerse los tokens, y un upsert (ON CONFLICT DO UPDATE)
+  // la necesita — fallaba con "new row violates row-level security policy".
+  const { error } = await supabase.rpc("guardar_google", {
+    p_refresh_token: session.provider_refresh_token ?? null,
+    p_access_token: conAccess ? session.provider_token : null,
+    p_expira_at: conAccess ? new Date(Date.now() + GOOGLE_TOKEN_MIN * 60_000).toISOString() : null,
+    p_scopes: GOOGLE_SCOPES,
+  });
 
   if (error) {
     console.error("No se pudo guardar la integración de Google:", error.message);
