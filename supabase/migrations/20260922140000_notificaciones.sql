@@ -1,6 +1,6 @@
 -- Control de envíos: evita mandar el mismo aviso dos veces el mismo día
 -- (el cron corre cada 15 minutos y las ventanas se solapan).
-create table public.notifications_sent (
+create table if not exists public.notifications_sent (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users (id) on delete cascade,
   tipo text not null,
@@ -10,6 +10,7 @@ create table public.notifications_sent (
 );
 
 alter table public.notifications_sent enable row level security;
+drop policy if exists "notifications_sent_select_own" on public.notifications_sent;
 create policy "notifications_sent_select_own" on public.notifications_sent for select using (user_id = auth.uid());
 
 -- La franja alta manda dos avisos al día (Foco y Segundo aire), así que el

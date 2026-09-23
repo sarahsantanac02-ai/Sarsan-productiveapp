@@ -39,32 +39,53 @@ Estado actual: **Fases 0–9 construidas.** Falta solo la Fase 10 (widgets nativ
 
 ```
 /src
-  /components/ui     # primitivas shadcn-style (Button, Card, Input, Label) + app-shell (header/dock)
+  sw.ts              # service worker propio (injectManifest): push + notificationclick
+  /components/ui     # primitivas shadcn-style (Button, Card, Input, Label, Sheet) + app-shell (header/dock)
+  /hooks             # use-minuto (tick de 60s para que la franja actual se mueva sola)
   /features
     auth/            # AuthProvider, sign-in con Google
     onboarding/      # perfil (hora_despertar/dormir, edad) — gate antes de la app
-    today/           # Hoy — etiquetas (Fase 1); franjas y pendientes llegan en Fase 3
-    calendar/        # Calendario — placeholder hasta la Fase 4
-    me/              # Mí — hábitos con check diario (Fase 1); agua/comida/energizantes/ciclo en Fase 5
-    finance/         # Finanzas — medios de pago (Fase 1); movimientos en Fase 6
-    tags/            # hook de etiquetas (usado por Hoy y, más adelante, por Captura)
-    integrations/    # (Fase 7) Notion, Gmail SAPQ — Google ya se conecta en auth/
-  /lib               # supabase client, theme, date, query-client, cn()
+    capture/         # voz, sheet manual, sheets de fecha y medio, task-card, use-items
+    today/           # Hoy — franja-bar, pendientes, "Organizar mi día"
+    calendar/        # Día / 3 días / Mes contra Google Calendar
+    me/              # hábitos, agua, lecturas, comida (foto), energizantes, ciclo
+    finance/         # movimientos por mes, categorías, medios de pago
+    tags/            # hook y sheet de etiquetas (usados por Hoy y por Captura)
+    integrations/    # Notion (OAuth + callback), Gmail SAPQ — Google se conecta en auth/
+    notifications/   # Ajustes: tema, push por dispositivo, preferencias de aviso
+  /lib               # supabase, theme, date, query-client, cn(), imagen
+                     # + lógica pura con pruebas: franjas, urgencia, salud, agenda, dinero
 /supabase
-  /migrations        # esquema + RLS + seed trigger (ya aplicados a mano vía SQL Editor — ver abajo)
+  /migrations        # esquema + RLS + seeds + storage + cron (aplicados a mano vía SQL Editor — ver abajo)
   /functions
-    _shared/         # CORS
-    classify-capture/  # index.ts + prompt.ts + schema.ts (Zod + JSON Schema con strict)
-    # pendientes: estimate-food, plan-day, google-calendar, gmail-sapq, notion-sync, web-push
+    _shared/         # cors, franjas (duplicado del front), google (OAuth + refresh), push (VAPID)
+    classify-capture/  # haiku — index.ts + prompt.ts + schema.ts (enums de nombres + Zod)
+    plan-day/          # sonnet — reparte pendientes en las franjas y escribe el resumen
+    estimate-food/     # sonnet con visión — calorías aproximadas desde una foto
+    google-calendar/   # lee y crea eventos (con RRULE) en Google Calendar
+    gmail-sapq/        # lee el buzón SAPQ
+    notion-sync/       # OAuth, crea "SarSan — Tareas", sincroniza Hecha
+    check-notifications/ # lo llama pg_cron cada 15 min; decide y manda los avisos
 /docs
   blueprint.md        # fuente de verdad del producto
   design-system.md    # tokens extraídos de reference/lovable/
   plan.md             # mapa pantalla → tablas → funciones
+  despliegue.md       # todo lo que hay que dejar configurado afuera del repo
 /reference
   lovable/            # export/capturas de Lovable — SOLO referencia visual, no se construye sobre esto
 ```
 
-Nota sobre las migraciones: como este entorno no tiene el `service_role` ni la contraseña de la base de datos de Sarah, el esquema de la Fase 1 se aplicó pegando el SQL consolidado en el SQL Editor del Dashboard de Supabase en vez de `supabase db push`. Los archivos en `supabase/migrations` son la fuente de verdad versionada; a partir de aquí, usar `npx supabase db push` (o repetir el pegado a mano) para cada migración nueva.
+Dos decisiones que no son obvias al leer el código:
+
+- **`classify-capture` NO usa `strict: true`** en el JSON Schema de la herramienta. Lo usaba, y la API
+  rechazaba la llamada entera: todo caía en el `catch` y terminaba como tarea en General. La garantía
+  del JSON la da Zod al validar la respuesta, no el `strict`.
+- **El modelo responde con nombres, no con UUIDs** (`Virrey`, `Nequi`, `Comida`). Pedirle que copie un
+  uuid de memoria es justo lo que peor hacen los modelos; los nombres se resuelven a id en el servidor.
+
+Nota sobre las migraciones: como este entorno no tiene el `service_role` ni la contraseña de la base de datos de Sarah, todas las migraciones se aplicaron pegando el SQL en el SQL Editor del Dashboard de Supabase en vez de `supabase db push`. Los archivos en `supabase/migrations` son la fuente de verdad versionada; para cada migración nueva, usar `npx supabase db push` o repetir el pegado a mano.
+
+Como ese pegado no queda registrado en `supabase_migrations`, una migración se puede correr dos veces sin querer. Escribirlas idempotentes cuando se pueda (`create table if not exists`, `on conflict do nothing`, `drop policy if exists` antes del `create policy`).
 
 ## Comandos
 
@@ -72,7 +93,7 @@ Nota sobre las migraciones: como este entorno no tiene el `service_role` ni la c
 - `npm run dev` — servidor de desarrollo Vite (http://localhost:5173)
 - `npm run build` — typecheck (`tsc -b`) + build de producción (incluye el service worker vía `vite-plugin-pwa`)
 - `npm run lint` — ESLint (flat config, ignora `reference/`)
-- `npm run test` — pruebas unitarias (vitest) — aún sin specs; llegan con los cálculos de la Fase 3+
+- `npm run test` — pruebas unitarias (vitest): 48 specs sobre la lógica pura de `src/lib`
 - `npm run gen:types` — regenera `src/lib/database.types.ts` desde el esquema real de Supabase (requiere `supabase login` una vez)
 - `npx supabase migration new <nombre>` — nueva migración versionada en `supabase/migrations`
 - `npx supabase db push` — aplica migraciones pendientes al proyecto vinculado (alternativa a pegar el SQL a mano en el Dashboard)
