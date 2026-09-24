@@ -18,6 +18,7 @@ import {
   usePushSubscriptions,
 } from "@/features/notifications/use-push";
 import { puedeConectarNotion, urlDeAutorizacionNotion } from "@/features/integrations/use-notion";
+import { HistorialCard } from "@/features/historial/historial-card";
 
 export function SettingsScreen() {
   const { signOut, user, errorGoogle, signInWithGoogle } = useAuth();
@@ -141,9 +142,30 @@ export function SettingsScreen() {
                   onChange={(e) => update.mutate({ cierre_hora: e.target.value })}
                 />
               </div>
+              <Interruptor
+                label="Un aviso por cada pendiente de Hoy"
+                activo={prefs.pendientes_individuales}
+                onCambiar={(v) => update.mutate({ pendientes_individuales: v })}
+              />
+              {prefs.pendientes_individuales && (
+                <div>
+                  <Label htmlFor="pendientes-hora">A qué hora</Label>
+                  <Input
+                    id="pendientes-hora"
+                    type="time"
+                    value={prefs.pendientes_hora.slice(0, 5)}
+                    onChange={(e) => update.mutate({ pendientes_hora: e.target.value })}
+                  />
+                  <p className="mt-1.5 text-[11px] text-muted-foreground">
+                    Sin límite: si tienes 8 pendientes hoy, te llegan 8 avisos separados.
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </Card>
+
+        <HistorialCard />
 
         <Card>
           <h2 className="font-display font-semibold">Integraciones</h2>
