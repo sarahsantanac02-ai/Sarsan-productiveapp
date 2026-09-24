@@ -94,7 +94,7 @@ export function TaskCard({
 
           <div className="mt-2.5 flex flex-wrap gap-1.5">
             {item.fecha && (
-              <span className={cn("tag", item.urgencia === "alta" ? "tag-urgent" : "tag-date")}>
+              <span className={cn("tag", item.urgencia === "alta" || item.fecha < hoy ? "tag-urgent" : "tag-date")}>
                 <Clock3 />
                 {etiquetaFecha(item.fecha, hoy)}
                 {item.hora ? ` · ${etiquetaHora(item.hora)}` : ""}

@@ -3,6 +3,7 @@ import { Plus, Sparkles, Wand2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { todayBogota } from "@/lib/date";
+import { sumarDias } from "@/lib/urgencia";
 import { construirFranjas, franjaActual, type Franja } from "@/lib/franjas";
 import { useMinutoBogota } from "@/hooks/use-minuto";
 import { useLongPress } from "@/hooks/use-long-press";
@@ -20,6 +21,14 @@ import { useEnviarANotion, useSincronizarNotion } from "@/features/integrations/
 import { SapqInbox } from "@/features/integrations/sapq-inbox";
 import { MailInbox } from "@/features/integrations/mail-inbox";
 
+type Vista = "hoy" | "manana" | "proximamente";
+
+const VISTAS: { id: Vista; nombre: string }[] = [
+  { id: "hoy", nombre: "Hoy" },
+  { id: "manana", nombre: "Mañana" },
+  { id: "proximamente", nombre: "Próximamente" },
+];
+
 export function TodayScreen() {
   const { data: profile } = useProfile();
   const { data: tags } = useTags();
@@ -29,6 +38,7 @@ export function TodayScreen() {
   const enviarANotion = useEnviarANotion();
   const sincronizarNotion = useSincronizarNotion();
 
+  const [vista, setVista] = useState<Vista>("hoy");
   const [filtroTag, setFiltroTag] = useState<string | null>(null);
   const [franjaElegida, setFranjaElegida] = useState<Franja | null>(null);
   const [editandoTag, setEditandoTag] = useState<Item | null>(null);
@@ -51,6 +61,14 @@ export function TodayScreen() {
   );
   const actual = useMemo(() => franjaActual(franjas, minutosAhora), [franjas, minutosAhora]);
 
+  const manana = sumarDias(hoy, 1);
+  /** Sin fecha cuenta como "proximamente": todavía no tiene un día asignado. */
+  const vistaDeItem = (item: Item): Vista => {
+    if (item.fecha && item.fecha <= hoy) return "hoy";
+    if (item.fecha === manana) return "manana";
+    return "proximamente";
+  };
+
   const todos = items ?? [];
   const asignadaHoy = (item: Item) => (item.franja_dia === hoy ? item.franja : null);
 
@@ -65,6 +83,7 @@ export function TodayScreen() {
   }, [todos, hoy]);
 
   const visibles = todos.filter((item) => {
+    if (vistaDeItem(item) !== vista) return false;
     if (filtroTag && item.tag_id !== filtroTag) return false;
     if (franjaElegida && asignadaHoy(item) !== franjaElegida.id) return false;
     return true;
@@ -137,9 +156,22 @@ export function TodayScreen() {
       <MailInbox />
 
       <section className="space-y-3">
+        <div className="flex gap-1 rounded-xl bg-secondary p-1">
+          {VISTAS.map((opcion) => (
+            <Button
+              key={opcion.id}
+              variant={vista === opcion.id ? "segmentActive" : "segment"}
+              size="sm"
+              onClick={() => setVista(opcion.id)}
+            >
+              {opcion.nombre}
+            </Button>
+          ))}
+        </div>
+
         <div className="flex items-center justify-between gap-2">
           <h2 className="font-display text-lg font-semibold">
-            {franjaElegida ? franjaElegida.nombre : "Lo que tienes hoy"}
+            {franjaElegida ? franjaElegida.nombre : VISTAS.find((opcion) => opcion.id === vista)!.nombre}
           </h2>
           <div className="flex items-center gap-2">
             {visibles.length > 0 && (
