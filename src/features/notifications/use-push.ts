@@ -110,6 +110,14 @@ export function useDesactivarPush() {
   });
 }
 
+type NotificationPrefs = {
+  por_franja: boolean;
+  cierre_hora: string;
+  vencimientos: boolean;
+  pendientes_individuales: boolean;
+  pendientes_hora: string;
+};
+
 export function useNotificationPrefs() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -120,16 +128,16 @@ export function useNotificationPrefs() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("notification_prefs")
-        .select("por_franja, cierre_hora, vencimientos")
+        .select("por_franja, cierre_hora, vencimientos, pendientes_individuales, pendientes_hora")
         .eq("user_id", user!.id)
         .single();
       if (error) throw error;
-      return data as { por_franja: boolean; cierre_hora: string; vencimientos: boolean };
+      return data as NotificationPrefs;
     },
   });
 
   const update = useMutation({
-    mutationFn: async (patch: Partial<{ por_franja: boolean; cierre_hora: string; vencimientos: boolean }>) => {
+    mutationFn: async (patch: Partial<NotificationPrefs>) => {
       const { error } = await supabase.from("notification_prefs").update(patch).eq("user_id", user!.id);
       if (error) throw error;
     },

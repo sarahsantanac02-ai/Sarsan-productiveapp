@@ -22,8 +22,13 @@ export function sumarDias(fecha: string, dias: number): string {
 }
 
 /** Día de la semana con lunes = 0, domingo = 6. */
-function diaDeSemanaLunes(fecha: string): number {
+export function diaDeSemanaLunes(fecha: string): number {
   return (new Date(Date.parse(fecha)).getUTCDay() + 6) % 7;
+}
+
+/** Lunes que abre la semana de `fecha` (semanas de lunes a domingo, blueprint). */
+export function inicioSemana(fecha: string): string {
+  return sumarDias(fecha, -diaDeSemanaLunes(fecha));
 }
 
 export type OpcionFecha = "hoy" | "manana" | "esta_semana" | "proxima_semana";

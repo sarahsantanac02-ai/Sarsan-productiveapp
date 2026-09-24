@@ -20,6 +20,8 @@ export type Item = {
   hora: string | null;
   duracion_min: number | null;
   done: boolean;
+  /** Cuándo se marcó hecho; null si está pendiente. La llenan/limpian Hoy y Realizadas. */
+  completado_en: string | null;
   clasificando: boolean;
   franja: FranjaId | null;
   franja_dia: string | null;

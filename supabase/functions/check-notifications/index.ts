@@ -14,7 +14,14 @@ type Perfil = {
   botellas_meta: number;
 };
 
-type Prefs = { user_id: string; por_franja: boolean; cierre_hora: string; vencimientos: boolean };
+type Prefs = {
+  user_id: string;
+  por_franja: boolean;
+  cierre_hora: string;
+  vencimientos: boolean;
+  pendientes_individuales: boolean;
+  pendientes_hora: string;
+};
 
 function dentroDeVentana(minutosAhora: number, objetivo: number): boolean {
   const diferencia = minutosAhora - objetivo;
@@ -64,7 +71,13 @@ Deno.serve(async () => {
       const suscripciones = (subsData ?? []) as Suscripcion[];
       if (suscripciones.length === 0) continue;
 
-      const prefs = (prefsData ?? { por_franja: true, cierre_hora: "19:00", vencimientos: true }) as Prefs;
+      const prefs = (prefsData ?? {
+        por_franja: true,
+        cierre_hora: "19:00",
+        vencimientos: true,
+        pendientes_individuales: false,
+        pendientes_hora: "07:00",
+      }) as Prefs;
       const franjas = construirFranjas(perfil.hora_despertar, perfil.hora_dormir);
       const pendientes: Array<{ tipo: string; aviso: Aviso }> = [];
 
@@ -112,6 +125,25 @@ Deno.serve(async () => {
               cuerpo: vencen.map((v) => v.texto).join(" · "),
               url: "/",
             },
+          });
+        }
+      }
+
+      // 2b. Un aviso separado por cada pendiente de "Hoy" (hoy o atrasado), sin
+      // agrupar y sin tope: si hay 8, salen 8.
+      if (prefs.pendientes_individuales && dentroDeVentana(minutosAhora, horaAMinutos(prefs.pendientes_hora))) {
+        const { data: deHoy } = await admin
+          .from("items")
+          .select("id, texto")
+          .eq("user_id", perfil.id)
+          .eq("done", false)
+          .in("tipo", ["tarea", "evento", "seguimiento", "idea"])
+          .lte("fecha", hoy);
+
+        for (const item of deHoy ?? []) {
+          pendientes.push({
+            tipo: `pendiente:${item.id}`,
+            aviso: { titulo: "Pendiente por hacer", cuerpo: item.texto, url: "/" },
           });
         }
       }

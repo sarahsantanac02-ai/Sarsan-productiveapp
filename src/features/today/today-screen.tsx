@@ -15,24 +15,27 @@ import { TagEditorSheet } from "@/features/tags/tag-editor-sheet";
 import { ItemSheet } from "@/features/capture/item-sheet";
 import { TaskCard } from "@/features/capture/task-card";
 import { useItems, useUpdateItem, type Item } from "@/features/capture/use-items";
+import { useItemsRealizadosSemana } from "@/features/historial/use-historial";
 import { FranjaBar } from "@/features/today/franja-bar";
 import { usePlanDay } from "@/features/today/use-plan-day";
 import { useEnviarANotion, useSincronizarNotion } from "@/features/integrations/use-notion";
 import { SapqInbox } from "@/features/integrations/sapq-inbox";
 import { MailInbox } from "@/features/integrations/mail-inbox";
 
-type Vista = "hoy" | "manana" | "proximamente";
+type Vista = "hoy" | "manana" | "proximamente" | "realizadas";
 
 const VISTAS: { id: Vista; nombre: string }[] = [
   { id: "hoy", nombre: "Hoy" },
   { id: "manana", nombre: "Mañana" },
   { id: "proximamente", nombre: "Próximamente" },
+  { id: "realizadas", nombre: "Realizadas" },
 ];
 
 export function TodayScreen() {
   const { data: profile } = useProfile();
   const { data: tags } = useTags();
-  const { data: items, isLoading, isError } = useItems();
+  const { data: items, isLoading: cargandoPendientes, isError } = useItems();
+  const { data: realizados, isLoading: cargandoRealizados } = useItemsRealizadosSemana();
   const updateItem = useUpdateItem();
   const planDay = usePlanDay();
   const enviarANotion = useEnviarANotion();
@@ -69,23 +72,27 @@ export function TodayScreen() {
     return "proximamente";
   };
 
-  const todos = items ?? [];
+  const pendientes = items ?? [];
   const asignadaHoy = (item: Item) => (item.franja_dia === hoy ? item.franja : null);
 
   const conteos = useMemo(() => {
     const acc: Record<string, number> = {};
-    for (const item of todos) {
+    for (const item of pendientes) {
       const franja = asignadaHoy(item);
       if (franja) acc[franja] = (acc[franja] ?? 0) + 1;
     }
     return acc;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [todos, hoy]);
+  }, [pendientes, hoy]);
 
-  const visibles = todos.filter((item) => {
-    if (vistaDeItem(item) !== vista) return false;
+  const esRealizadas = vista === "realizadas";
+  const todosDeVista = esRealizadas ? realizados ?? [] : pendientes;
+  const cargando = esRealizadas ? cargandoRealizados : cargandoPendientes;
+
+  const visibles = todosDeVista.filter((item) => {
+    if (!esRealizadas && vistaDeItem(item) !== vista) return false;
     if (filtroTag && item.tag_id !== filtroTag) return false;
-    if (franjaElegida && asignadaHoy(item) !== franjaElegida.id) return false;
+    if (!esRealizadas && franjaElegida && asignadaHoy(item) !== franjaElegida.id) return false;
     return true;
   });
 
@@ -133,7 +140,7 @@ export function TodayScreen() {
           size="lg"
           className="w-full"
           onClick={() => planDay.mutate()}
-          disabled={planDay.isPending || todos.length === 0}
+          disabled={planDay.isPending || pendientes.length === 0}
         >
           <Wand2 />
           {planDay.isPending ? "Organizando..." : "Organizar mi día"}
@@ -171,12 +178,13 @@ export function TodayScreen() {
 
         <div className="flex items-center justify-between gap-2">
           <h2 className="font-display text-lg font-semibold">
-            {franjaElegida ? franjaElegida.nombre : VISTAS.find((opcion) => opcion.id === vista)!.nombre}
+            {!esRealizadas && franjaElegida ? franjaElegida.nombre : VISTAS.find((opcion) => opcion.id === vista)!.nombre}
           </h2>
           <div className="flex items-center gap-2">
             {visibles.length > 0 && (
               <span className="text-xs text-muted-foreground">
-                {visibles.length} {visibles.length === 1 ? "pendiente" : "pendientes"}
+                {visibles.length}{" "}
+                {esRealizadas ? (visibles.length === 1 ? "hecho" : "hechos") : visibles.length === 1 ? "pendiente" : "pendientes"}
               </span>
             )}
             {hayFiltro && (
@@ -194,19 +202,23 @@ export function TodayScreen() {
           </div>
         </div>
 
-        {isLoading && <p className="text-sm text-muted-foreground">Cargando...</p>}
-        {isError && <p className="text-sm text-destructive">No se pudieron cargar tus pendientes.</p>}
+        {cargando && <p className="text-sm text-muted-foreground">Cargando...</p>}
+        {!esRealizadas && isError && <p className="text-sm text-destructive">No se pudieron cargar tus pendientes.</p>}
 
-        {items && visibles.length === 0 && (
+        {!cargando && visibles.length === 0 && (
           <div className="py-10 text-center">
             <span className="mx-auto flex size-10 items-center justify-center rounded-2xl bg-primary-soft text-primary">
               <Sparkles />
             </span>
             <p className="mt-3 font-display text-sm font-semibold">
-              {hayFiltro ? "Nada por aquí" : "Eso es todo por ahora"}
+              {hayFiltro ? "Nada por aquí" : esRealizadas ? "Nada hecho todavía esta semana" : "Eso es todo por ahora"}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              {hayFiltro ? "Toca “Ver todo” para quitar los filtros." : "Toca el micrófono y suelta lo que tengas."}
+              {hayFiltro
+                ? "Toca “Ver todo” para quitar los filtros."
+                : esRealizadas
+                  ? "Lo que marques hecho se queda aquí toda la semana."
+                  : "Toca el micrófono y suelta lo que tengas."}
             </p>
           </div>
         )}
@@ -219,7 +231,10 @@ export function TodayScreen() {
             franja={franjas.find((f) => f.id === asignadaHoy(item))}
             onToggle={() => {
               const hecha = !item.done;
-              updateItem.mutate({ id: item.id, patch: { done: hecha } });
+              updateItem.mutate({
+                id: item.id,
+                patch: { done: hecha, completado_en: hecha ? new Date().toISOString() : null },
+              });
               // Si la tarea vive también en Notion, deja la casilla al día allá.
               if (item.notion_page_id) {
                 sincronizarNotion.mutate({ notionPageId: item.notion_page_id, hecha });
