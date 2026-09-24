@@ -241,13 +241,9 @@ function TagChip({
       style={{
         backgroundColor: activa ? tag.color : `color-mix(in oklch, ${tag.color} 14%, var(--card))`,
         color: activa ? "var(--primary-foreground)" : tag.color,
-        borderColor: activa ? tag.color : `color-mix(in oklch, ${tag.color} 35%, var(--border))`,
+        borderColor: tag.color,
       }}
     >
-      <span
-        className="size-2 rounded-full"
-        style={{ backgroundColor: activa ? "var(--primary-foreground)" : tag.color }}
-      />
       <TagLogo tag={tag} />
       {tag.nombre}
     </button>

@@ -167,11 +167,14 @@ export function ItemSheet({ item, onClose }: { item: Item; onClose: () => void }
             <button
               key={tag.id}
               onClick={() => setTagId(tag.id)}
-              className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold"
+              className={cn(
+                "inline-flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold",
+                activa ? "border-2" : "border",
+              )}
               style={{
-                backgroundColor: activa ? `color-mix(in oklch, ${tag.color} 16%, var(--card))` : "var(--card)",
-                borderColor: activa ? tag.color : "var(--border)",
-                color: activa ? tag.color : undefined,
+                backgroundColor: `color-mix(in oklch, ${tag.color} 16%, var(--card))`,
+                borderColor: tag.color,
+                color: tag.color,
               }}
             >
               <TagLogo tag={tag} className="size-3.5" /> {tag.nombre}

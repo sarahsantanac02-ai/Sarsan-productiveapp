@@ -25,15 +25,15 @@ export function TagSheet({ item, onClose }: { item: Item; onClose: () => void })
               onClick={() => corregirTag.mutate({ item, tagId: tag.id }, { onSuccess: onClose })}
               disabled={corregirTag.isPending}
               className={cn(
-                "flex min-h-12 cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-left text-sm font-semibold transition-all disabled:opacity-50",
-                activa ? "border-primary" : "border-border",
+                "flex min-h-12 cursor-pointer items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-semibold transition-all disabled:opacity-50",
+                activa ? "border-2" : "border",
               )}
               style={{
-                backgroundColor: activa ? `color-mix(in oklch, ${tag.color} 16%, var(--card))` : "var(--card)",
-                color: activa ? tag.color : undefined,
+                backgroundColor: `color-mix(in oklch, ${tag.color} 16%, var(--card))`,
+                borderColor: tag.color,
+                color: tag.color,
               }}
             >
-              <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: tag.color }} />
               <TagLogo tag={tag} />
               <span className="truncate">{tag.nombre}</span>
             </button>
