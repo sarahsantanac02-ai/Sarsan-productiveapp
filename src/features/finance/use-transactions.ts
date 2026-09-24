@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { supabase } from "@/lib/supabase";
 import { rangoMes } from "@/lib/dinero";
@@ -54,6 +54,36 @@ export function useTransactions(mes: string) {
         .order("created_at", { ascending: false });
       if (error) throw error;
       return (data as Transaction[]).map((t) => ({ ...t, monto: Number(t.monto) }));
+    },
+  });
+}
+
+export function useUpdateTransaction() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, patch }: { id: string; patch: Partial<Transaction> }) => {
+      const { error } = await supabase.from("transactions").update(patch).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["transactions", user?.id] });
+    },
+  });
+}
+
+export function useBorrarTransaccion() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("transactions").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["transactions", user?.id] });
     },
   });
 }

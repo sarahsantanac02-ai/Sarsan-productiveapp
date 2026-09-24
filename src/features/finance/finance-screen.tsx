@@ -5,10 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ScreenTitle } from "@/components/app-shell";
 import { cn } from "@/lib/utils";
+import { useLongPress } from "@/hooks/use-long-press";
 import { etiquetaFecha, todayBogota } from "@/lib/date";
 import { mesAnterior, mesDeHoy, mesSiguiente, nombreMes, pesos, pesosCorto } from "@/lib/dinero";
 import { tipoEmoji, usePaymentMethods } from "@/features/finance/use-payment-methods";
-import { useMoneyCategories, useTransactions, type TipoMovimiento } from "@/features/finance/use-transactions";
+import { useMoneyCategories, useTransactions, type TipoMovimiento, type Transaction } from "@/features/finance/use-transactions";
+import { TransactionSheet } from "@/features/finance/transaction-sheet";
 import { useCapture } from "@/features/capture/use-items";
 import { useCaptureSheets } from "@/features/capture/capture-provider";
 
@@ -17,6 +19,7 @@ export function FinanceScreen() {
   const [mes, setMes] = useState(() => mesDeHoy(hoy));
   const [tipo, setTipo] = useState<TipoMovimiento>("gasto");
   const [rapido, setRapido] = useState("");
+  const [editando, setEditando] = useState<Transaction | null>(null);
 
   const { data: medios } = usePaymentMethods();
   const { data: categorias } = useMoneyCategories();
@@ -207,23 +210,16 @@ export function FinanceScreen() {
                         </p>
                         <p className="text-xs font-semibold">{pesos(subtotal)}</p>
                       </div>
-                      {delDia.map((m) => {
-                        const categoria = categorias?.find((c) => c.id === m.categoria_id);
-                        const medio = medios?.find((x) => x.id === m.medio_id);
-                        return (
-                          <div key={m.id} className="flex items-center gap-3 border-t border-border py-3 first:border-0">
-                            <span className="text-xl">{categoria?.emoji ?? "❔"}</span>
-                            <div className="min-w-0 flex-1">
-                              <p className="truncate text-sm font-medium">{m.texto ?? categoria?.nombre ?? "Movimiento"}</p>
-                              <p className="text-[10px] text-muted-foreground">{medio?.nombre ?? "Sin medio de pago"}</p>
-                            </div>
-                            <span className={cn("text-sm font-semibold", tipo === "ingreso" && "text-success")}>
-                              {tipo === "gasto" ? "−" : "+"}
-                              {pesos(m.monto)}
-                            </span>
-                          </div>
-                        );
-                      })}
+                      {delDia.map((m) => (
+                        <MovementRow
+                          key={m.id}
+                          movimiento={m}
+                          categoriaNombre={categorias?.find((c) => c.id === m.categoria_id)?.nombre}
+                          categoriaEmoji={categorias?.find((c) => c.id === m.categoria_id)?.emoji}
+                          medioNombre={medios?.find((x) => x.id === m.medio_id)?.nombre}
+                          onEditar={() => setEditando(m)}
+                        />
+                      ))}
                     </Card>
                   );
                 })}
@@ -232,6 +228,42 @@ export function FinanceScreen() {
           </>
         )}
       </div>
+
+      {editando && <TransactionSheet transaction={editando} onClose={() => setEditando(null)} />}
+    </div>
+  );
+}
+
+/** Tocar no hace nada; mantener presionado abre la edición del movimiento. */
+function MovementRow({
+  movimiento,
+  categoriaNombre,
+  categoriaEmoji,
+  medioNombre,
+  onEditar,
+}: {
+  movimiento: Transaction;
+  categoriaNombre?: string;
+  categoriaEmoji?: string | null;
+  medioNombre?: string;
+  onEditar: () => void;
+}) {
+  const longPress = useLongPress(onEditar);
+
+  return (
+    <div
+      {...longPress}
+      className="no-callout flex cursor-pointer items-center gap-3 border-t border-border py-3 first:border-0"
+    >
+      <span className="text-xl">{categoriaEmoji ?? "❔"}</span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium">{movimiento.texto ?? categoriaNombre ?? "Movimiento"}</p>
+        <p className="text-[10px] text-muted-foreground">{medioNombre ?? "Sin medio de pago"}</p>
+      </div>
+      <span className={cn("text-sm font-semibold", movimiento.tipo === "ingreso" && "text-success")}>
+        {movimiento.tipo === "gasto" ? "−" : "+"}
+        {pesos(movimiento.monto)}
+      </span>
     </div>
   );
 }
