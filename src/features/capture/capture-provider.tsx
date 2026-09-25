@@ -2,13 +2,16 @@ import { createContext, useCallback, useContext, useState, type ReactNode } from
 
 import { useCapture } from "@/features/capture/use-items";
 import { useCrearEnGoogle } from "@/features/calendar/use-calendar";
+import type { TipoMovimiento } from "@/features/finance/use-transactions";
 import { VoiceSheet } from "@/features/capture/voice-sheet";
 import { ManualSheet } from "@/features/capture/manual-sheet";
 import { DateSheet } from "@/features/capture/date-sheet";
+import { AmountSheet } from "@/features/capture/amount-sheet";
 import { PaymentSheet } from "@/features/capture/payment-sheet";
 
 type Seguimiento =
   | { tipo: "fecha"; itemId: string; texto: string }
+  | { tipo: "monto"; tipoMovimiento: TipoMovimiento; fecha: string | null; texto: string }
   | { tipo: "medio"; transactionId: string; monto: number; texto: string };
 
 type CaptureContextValue = {
@@ -44,11 +47,14 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
             return;
           }
 
-          // Blueprint: tarea sin fecha → pregunta cuándo; gasto sin medio → pregunta con qué pagó.
+          // Blueprint: tarea sin fecha → pregunta cuándo; gasto/ingreso sin monto
+          // → pregunta cuánto (si no, no queda registrado en Finanzas); si ya
+          // tiene monto pero no medio → pregunta con qué pagó.
+          const esMovimiento = clasificacion.tipo === "gasto" || clasificacion.tipo === "ingreso";
           const necesitaFecha =
             (clasificacion.tipo === "tarea" || clasificacion.tipo === "seguimiento") && !clasificacion.fecha;
-          const necesitaMedio =
-            clasificacion.tipo === "gasto" && !clasificacion.medio_id && !!clasificacion.transaction_id;
+          const necesitaMonto = esMovimiento && !clasificacion.monto;
+          const necesitaMedio = clasificacion.tipo === "gasto" && !clasificacion.medio_id && !!clasificacion.transaction_id;
 
           // Un evento con fecha se agenda solo en Google (flujo del blueprint).
           // Si Google falla, el evento igual quedó guardado acá.
@@ -65,6 +71,13 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
 
           if (necesitaFecha) {
             setSeguimiento({ tipo: "fecha", itemId, texto: clasificacion.texto_limpio });
+          } else if (necesitaMonto) {
+            setSeguimiento({
+              tipo: "monto",
+              tipoMovimiento: clasificacion.tipo as TipoMovimiento,
+              fecha: clasificacion.fecha,
+              texto: clasificacion.texto_limpio,
+            });
           } else if (necesitaMedio) {
             setSeguimiento({
               tipo: "medio",
@@ -95,6 +108,23 @@ export function CaptureProvider({ children }: { children: ReactNode }) {
 
       {seguimiento?.tipo === "fecha" && (
         <DateSheet itemId={seguimiento.itemId} texto={seguimiento.texto} onClose={() => setSeguimiento(null)} />
+      )}
+      {seguimiento?.tipo === "monto" && (
+        <AmountSheet
+          texto={seguimiento.texto}
+          tipo={seguimiento.tipoMovimiento}
+          fecha={seguimiento.fecha}
+          onClose={() => setSeguimiento(null)}
+          onListo={(transactionId, monto) => {
+            // Solo seguimos preguntando el medio para gastos (igual que si la
+            // IA ya hubiera tenido el monto desde el principio).
+            if (seguimiento.tipoMovimiento === "gasto") {
+              setSeguimiento({ tipo: "medio", transactionId, monto, texto: seguimiento.texto });
+            } else {
+              setSeguimiento(null);
+            }
+          }}
+        />
       )}
       {seguimiento?.tipo === "medio" && (
         <PaymentSheet
